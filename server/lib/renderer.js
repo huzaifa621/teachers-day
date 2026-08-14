@@ -4,10 +4,23 @@ const { LAYOUT } = require('./postcard-layout');
 let browserPromise = null;
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = import('puppeteer').then(({ default: puppeteer }) => puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }));
+    // Vercel's serverless functions have no system Chrome, and the full
+    // `puppeteer` package's bundled download doesn't survive into the
+    // deployed function bundle — use the serverless-packaged Chromium there.
+    browserPromise = process.env.VERCEL
+      ? (async () => {
+          const chromium = (await import('@sparticuz/chromium')).default;
+          const puppeteer = (await import('puppeteer-core')).default;
+          return puppeteer.launch({
+            headless: true,
+            args: chromium.args,
+            executablePath: await chromium.executablePath()
+          });
+        })()
+      : import('puppeteer').then(({ default: puppeteer }) => puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        }));
   }
   return browserPromise;
 }

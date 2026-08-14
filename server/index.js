@@ -1,7 +1,6 @@
 const express = require('express');
-const session = require('express-session');
+const session = require('cookie-session');
 const path = require('path');
-const crypto = require('crypto');
 
 const { UPLOADS_DIR, ROOT } = require('./lib/paths');
 
@@ -18,11 +17,16 @@ const PORT = process.env.PORT || 4173;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Session data lives signed inside the cookie itself (not a server-side store),
+// since Vercel's serverless functions don't share memory across instances —
+// a server-side session store would make logins randomly "disappear" whenever
+// a request lands on a different instance than the one that created it.
 app.use(session({
-  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-  resave: false,
-  saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax' }
+  name: 'session',
+  keys: [process.env.SESSION_SECRET || 'teachers-day-postcard-portal-dev-secret-change-me'],
+  maxAge: 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax'
 }));
 
 app.use('/uploads', express.static(UPLOADS_DIR));
