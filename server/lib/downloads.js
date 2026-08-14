@@ -18,7 +18,8 @@ function baseData(sub) {
     studentName: sub.student_name,
     studentInstitute: sub.student_institute,
     fontFamily: sub.font_family,
-    textColor: sub.text_color
+    textColor: sub.text_color,
+    fontSize: sub.font_size
   };
 }
 

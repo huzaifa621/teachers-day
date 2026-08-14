@@ -41,6 +41,7 @@ function toPublic(s) {
     fileName: s.file_name,
     fontFamily: s.font_family,
     textColor: s.text_color,
+    fontSize: s.font_size,
     createdAt: s.created_at,
     fileUrl: s.file_path ? `/uploads/${s.file_path}` : null
   };
@@ -62,6 +63,7 @@ router.post('/', requireStudent, upload.single('file'), (req, res) => {
   const message = (req.body.message || '').trim();
   const fontFamily = req.body.fontFamily || 'Georgia, serif';
   const textColor = req.body.textColor || '#2c1810';
+  const fontSize = req.body.fontSize || '26px';
 
   if (!['text', 'video', 'pdf'].includes(type)) {
     return res.status(400).json({ error: 'Invalid type' });
@@ -95,7 +97,8 @@ router.post('/', requireStudent, upload.single('file'), (req, res) => {
     filePath,
     fileName: req.file ? req.file.originalname : null,
     fontFamily,
-    textColor
+    textColor,
+    fontSize
   });
 
   res.json(toPublic(sub));

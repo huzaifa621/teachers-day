@@ -31,17 +31,17 @@ const submissions = {
   byProfessor(profId) {
     return db.prepare('SELECT * FROM submissions WHERE prof_id = ? ORDER BY created_at ASC').all(profId);
   },
-  create({ studentName, studentInstitute, prof, type, message, filePath, fileName, fontFamily, textColor }) {
+  create({ studentName, studentInstitute, prof, type, message, filePath, fileName, fontFamily, textColor, fontSize }) {
     const id = newId('sub');
     const created_at = new Date().toISOString();
     db.prepare(`
       INSERT INTO submissions
-        (id, student_name, student_institute, prof_id, prof_name, prof_institute, type, message, file_path, file_name, font_family, text_color, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, student_name, student_institute, prof_id, prof_name, prof_institute, type, message, file_path, file_name, font_family, text_color, font_size, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, studentName, studentInstitute, prof.id, prof.name, prof.institute,
       type, message || null, filePath || null, fileName || null,
-      fontFamily || 'Georgia, serif', textColor || '#2c1810', created_at
+      fontFamily || 'Georgia, serif', textColor || '#2c1810', fontSize || '26px', created_at
     );
     return submissions.get(id);
   },

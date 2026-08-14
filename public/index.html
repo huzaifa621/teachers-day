@@ -125,7 +125,7 @@
 
           <div class="form-section nested">
             <h3>Customize</h3>
-            <div class="form-row">
+            <div class="form-row-3">
               <div class="form-group">
                 <label>Font</label>
                 <select id="studentFontFamily">
@@ -138,10 +138,29 @@
                 <label>Color</label>
                 <input type="color" id="studentTextColor" value="#2c1810">
               </div>
+              <div class="form-group">
+                <label>Font Size</label>
+                <select id="studentFontSize">
+                  <option value="20px">Small</option>
+                  <option value="26px" selected>Medium</option>
+                  <option value="32px">Large</option>
+                  <option value="38px">Extra Large</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <button class="btn btn-full" id="submitBtn">Submit Tribute</button>
+
+          <div class="form-section nested" id="myTributesSection" style="display:none;">
+            <h3>Your Tributes (saved on this device)</h3>
+            <p class="muted">
+              Kept in this browser so you can re-download them any time. If the server has
+              restarted since you submitted, downloads for older tributes may fail — the
+              tribute record itself is still safe here.
+            </p>
+            <div id="myTributesList"></div>
+          </div>
         </div>
 
         <div>

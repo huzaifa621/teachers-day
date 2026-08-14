@@ -38,4 +38,10 @@ db.exec(`
   );
 `);
 
+// Added after the initial release — guard with try/catch since
+// CREATE TABLE IF NOT EXISTS above won't alter an already-existing table.
+try {
+  db.exec(`ALTER TABLE submissions ADD COLUMN font_size TEXT DEFAULT '26px'`);
+} catch (_) { /* column already exists */ }
+
 module.exports = db;

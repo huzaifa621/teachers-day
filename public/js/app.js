@@ -106,6 +106,7 @@
       $('studentTabs').style.display = 'flex';
       $('adminTabs').style.display = 'none';
       switchTab('student');
+      renderMySubmissions();
     } else {
       $('studentTabs').style.display = 'none';
       $('adminTabs').style.display = 'flex';
@@ -202,6 +203,7 @@
   });
   $('studentFontFamily').addEventListener('change', updatePreview);
   $('studentTextColor').addEventListener('change', updatePreview);
+  $('studentFontSize').addEventListener('change', updatePreview);
 
   let lastVideoUrl = null;
   function updatePreview() {
@@ -211,6 +213,7 @@
     const prof = state.professors.find((p) => p.id === state.selectedProfId);
     const fontFamily = $('studentFontFamily').value;
     const textColor = $('studentTextColor').value;
+    const fontSize = $('studentFontSize').value;
 
     $('previewFrame').style.fontFamily = fontFamily;
     $('previewStudentName').textContent = name;
@@ -228,7 +231,7 @@
 
     if (type === 'text') {
       const message = $('message').value || 'Your message will appear here';
-      left.innerHTML = `<div class="quote" style="color:${textColor};">${escapeHtml(message)}</div>`;
+      left.innerHTML = `<div class="quote" style="color:${textColor};font-size:${fontSize};">${escapeHtml(message)}</div>`;
     } else if (type === 'video') {
       const file = $('videoFile').files[0];
       if (file) {
@@ -261,6 +264,7 @@
     fd.append('profId', state.selectedProfId);
     fd.append('fontFamily', $('studentFontFamily').value);
     fd.append('textColor', $('studentTextColor').value);
+    fd.append('fontSize', $('studentFontSize').value);
     if (type === 'text') fd.append('message', message);
     if (type === 'video') fd.append('file', videoFile);
     if (type === 'pdf') fd.append('file', pdfFile);
@@ -268,13 +272,15 @@
     $('submitBtn').disabled = true;
     $('submitBtn').textContent = 'Submitting...';
     try {
-      await fetch('/api/submissions', { method: 'POST', body: fd, credentials: 'same-origin' })
+      const sub = await fetch('/api/submissions', { method: 'POST', body: fd, credentials: 'same-origin' })
         .then(async (res) => {
           const data = await res.json().catch(() => null);
           if (!res.ok) throw new Error((data && data.error) || 'Submission failed');
           return data;
         });
-      showAlert('studentAlert', 'Tribute submitted! Thank you!', 'success');
+      saveMySubmission(sub);
+      renderMySubmissions();
+      showAlert('studentAlert', 'Tribute submitted! Thank you! Download it below, or find it any time under "Your Tributes".', 'success');
       $('message').value = '';
       $('videoFile').value = '';
       $('pdfFile').value = '';
@@ -291,6 +297,52 @@
       $('submitBtn').textContent = 'Submit Tribute';
     }
   });
+
+  // ---------- MY TRIBUTES (local backup, since server storage on this
+  // deployment is not guaranteed to persist between requests) ----------
+  const MY_SUBMISSIONS_KEY = 'ttp_my_submissions';
+
+  function loadMySubmissions() {
+    try {
+      const raw = localStorage.getItem(MY_SUBMISSIONS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveMySubmission(sub) {
+    if (!sub || !sub.id) return;
+    const list = loadMySubmissions();
+    list.unshift(sub);
+    try {
+      localStorage.setItem(MY_SUBMISSIONS_KEY, JSON.stringify(list.slice(0, 50)));
+    } catch (e) { /* storage full or unavailable — submission still went to the server */ }
+  }
+
+  function renderMySubmissions() {
+    const list = loadMySubmissions();
+    const section = $('myTributesSection');
+    const el = $('myTributesList');
+    if (!list.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    el.innerHTML = list.map((s) => `
+      <div class="media-row">
+        <span>${typeLabel(s.type)} to <strong>${escapeHtml(s.profName)}</strong> &middot; ${new Date(s.createdAt).toLocaleDateString()}</span>
+        <span>
+          <button class="gallery-btn alt" data-my-pdf="${s.id}">PDF</button>
+          <button class="gallery-btn alt" data-my-card="${s.id}">Card</button>
+        </span>
+      </div>
+    `).join('');
+    qsa('[data-my-pdf]', el).forEach((btn) => btn.addEventListener('click', () =>
+      downloadFile(`/api/submissions/${btn.dataset.myPdf}/download/pdf`, btn)));
+    qsa('[data-my-card]', el).forEach((btn) => btn.addEventListener('click', () =>
+      downloadFile(`/api/submissions/${btn.dataset.myCard}/download/card`, btn)));
+  }
 
   // ---------- GALLERY ----------
   let allSubmissions = [];

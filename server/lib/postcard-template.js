@@ -20,6 +20,7 @@ function renderPostcardHTML({
   media,
   fontFamily = 'Georgia, serif',
   textColor = '#2c1810',
+  fontSize = '26px',
   transparent = false
 }) {
   const rects = getRects();
@@ -93,7 +94,7 @@ function renderPostcardHTML({
     }
     .message-text {
       color: ${textColor};
-      font-size: 26px; line-height: 1.55; text-align: center;
+      font-size: ${fontSize}; line-height: 1.55; text-align: center;
       padding: 40px 30px; white-space: pre-wrap; word-wrap: break-word;
     }
     .pdf-slot { text-align: center; color: #8b6f47; }

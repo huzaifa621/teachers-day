@@ -24,14 +24,17 @@ async function withPage(fn, { scale = 2 } = {}) {
 }
 
 async function renderPNG(html, { transparent = false, scale = 2 } = {}) {
-  return withPage(async (page) => {
+  const bytes = await withPage(async (page) => {
     await page.setContent(html, { waitUntil: 'networkidle0' });
     return page.screenshot({ type: 'png', omitBackground: transparent });
   }, { scale });
+  // Newer puppeteer returns a plain Uint8Array, not a Node Buffer — Express's
+  // res.send() only sends raw bytes for a true Buffer, otherwise it JSON-serializes it.
+  return Buffer.from(bytes);
 }
 
 async function renderPDF(html) {
-  return withPage(async (page) => {
+  const bytes = await withPage(async (page) => {
     await page.setContent(html, { waitUntil: 'networkidle0' });
     return page.pdf({
       width: `${LAYOUT.width}px`,
@@ -41,6 +44,7 @@ async function renderPDF(html) {
       margin: { top: 0, bottom: 0, left: 0, right: 0 }
     });
   });
+  return Buffer.from(bytes);
 }
 
 async function mergePDFs(buffers) {
