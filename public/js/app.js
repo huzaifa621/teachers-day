@@ -35,6 +35,43 @@
     return div.innerHTML;
   }
 
+  // ---------- SHARED BROWSER CACHE ----------
+  // Server storage on this deployment can reset between requests (different
+  // serverless instances). To keep admin-added professors and submissions
+  // visible to every role using THIS browser, cache what we see here and
+  // merge it back in on every load — this is per-browser, not per-account,
+  // so it fixes "admin adds a prof, student on the same browser can't see
+  // it" but doesn't make data visible across different devices/browsers.
+  const PROFESSORS_CACHE_KEY = 'ttp_professors_cache';
+  const SUBMISSIONS_CACHE_KEY = 'ttp_submissions_cache';
+
+  function loadCache(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCache(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { /* storage full/unavailable */ }
+  }
+
+  // Cached entries win on `photo` when it's a data URI (guaranteed to render
+  // even if the server's uploaded file didn't survive an instance reset);
+  // otherwise the freshest server fields win.
+  function mergeById(serverList, cachedList) {
+    const byId = {};
+    cachedList.forEach((item) => { byId[item.id] = item; });
+    serverList.forEach((item) => {
+      const existing = byId[item.id];
+      const keepCachedPhoto = existing && typeof existing.photo === 'string' && existing.photo.startsWith('data:');
+      byId[item.id] = keepCachedPhoto ? { ...item, photo: existing.photo } : { ...existing, ...item };
+    });
+    return Object.values(byId);
+  }
+
   // ---------- LOGIN ----------
   qsa('.role-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -133,11 +170,14 @@
 
   // ---------- PROFESSORS ----------
   async function loadProfessors() {
+    let serverList = [];
     try {
-      state.professors = await api('/api/professors');
+      serverList = await api('/api/professors');
     } catch (e) {
-      state.professors = [];
+      serverList = [];
     }
+    state.professors = mergeById(serverList, loadCache(PROFESSORS_CACHE_KEY));
+    saveCache(PROFESSORS_CACHE_KEY, state.professors);
     renderProfessorList(state.professors);
     $('profCount').textContent = state.professors.length;
   }
@@ -318,6 +358,13 @@
     try {
       localStorage.setItem(MY_SUBMISSIONS_KEY, JSON.stringify(list.slice(0, 50)));
     } catch (e) { /* storage full or unavailable — submission still went to the server */ }
+
+    // Also feed the shared Gallery cache, so this tribute stays visible to
+    // admin (or any role) browsing the Gallery on this same browser even if
+    // the server-side record doesn't survive to their next request.
+    const shared = loadCache(SUBMISSIONS_CACHE_KEY);
+    shared.push(sub);
+    saveCache(SUBMISSIONS_CACHE_KEY, shared);
   }
 
   function renderMySubmissions() {
@@ -329,33 +376,62 @@
       return;
     }
     section.style.display = 'block';
-    el.innerHTML = list.map((s) => `
-      <div class="media-row">
-        <span>${typeLabel(s.type)} to <strong>${escapeHtml(s.profName)}</strong> &middot; ${new Date(s.createdAt).toLocaleDateString()}</span>
-        <span>
-          <button class="gallery-btn alt" data-my-pdf="${s.id}">PDF</button>
-          <button class="gallery-btn alt" data-my-card="${s.id}">Card</button>
-        </span>
-      </div>
-    `).join('');
-    qsa('[data-my-pdf]', el).forEach((btn) => btn.addEventListener('click', () =>
-      downloadFile(`/api/submissions/${btn.dataset.myPdf}/download/pdf`, btn)));
-    qsa('[data-my-card]', el).forEach((btn) => btn.addEventListener('click', () =>
-      downloadFile(`/api/submissions/${btn.dataset.myCard}/download/card`, btn)));
+    el.innerHTML = list.map(submissionCardHTML).join('');
+    wireSubmissionCardButtons(el);
   }
 
   // ---------- GALLERY ----------
   let allSubmissions = [];
   async function loadGallery() {
+    let serverList = [];
     try {
-      allSubmissions = await api('/api/submissions');
+      serverList = await api('/api/submissions');
     } catch (e) {
-      allSubmissions = [];
+      serverList = [];
     }
+    allSubmissions = mergeById(serverList, loadCache(SUBMISSIONS_CACHE_KEY));
+    saveCache(SUBMISSIONS_CACHE_KEY, allSubmissions);
     renderGallery(allSubmissions);
   }
 
   function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
+
+  // Shared rich card markup (photo/video thumbnail + download buttons) used
+  // by both the shared Gallery and the student's own "My Tributes" list, so
+  // both roles get the same visual treatment, not just a plain text row.
+  function submissionCardHTML(s) {
+    let thumb = '';
+    if (s.type === 'text') thumb = `<div style="font-size:36px;">&#128221;</div>`;
+    else if (s.type === 'video') thumb = `<video muted><source src="${s.fileUrl}"></video>`;
+    else thumb = `<div style="font-size:36px;">&#128196;</div>`;
+
+    return `
+      <div class="gallery-card">
+        <div class="gallery-thumbnail" data-view="${s.id}">${thumb}</div>
+        <div class="gallery-info">
+          <div class="gallery-header"><span class="gallery-type">${typeLabel(s.type)}</span></div>
+          ${s.type === 'text' ? `<div class="gallery-text">&ldquo;${escapeHtml((s.message || '').slice(0, 90))}&rdquo;</div>` : ''}
+          ${s.type !== 'text' ? `<div class="gallery-text">${escapeHtml(s.fileName || '')}</div>` : ''}
+          <div class="gallery-meta">
+            <div><strong>To:</strong> ${escapeHtml(s.profName)}</div>
+            <div><strong>From:</strong> ${escapeHtml(s.studentName)}</div>
+            <div><strong>Date:</strong> ${new Date(s.createdAt).toLocaleString()}</div>
+          </div>
+          <div>
+            ${s.type !== 'text' ? `<button class="gallery-btn" data-view="${s.id}">View</button>` : ''}
+            <button class="gallery-btn alt" data-pdf="${s.id}">PDF</button>
+            <button class="gallery-btn alt" data-card="${s.id}">Card</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireSubmissionCardButtons(el) {
+    qsa('[data-view]', el).forEach((btn) => btn.addEventListener('click', () => viewSubmission(btn.dataset.view)));
+    qsa('[data-pdf]', el).forEach((btn) => btn.addEventListener('click', () => downloadFile(`/api/submissions/${btn.dataset.pdf}/download/pdf`, btn)));
+    qsa('[data-card]', el).forEach((btn) => btn.addEventListener('click', () => downloadFile(`/api/submissions/${btn.dataset.card}/download/card`, btn)));
+  }
 
   function renderGallery(list) {
     $('totalCount').textContent = list.length;
@@ -364,37 +440,8 @@
       el.innerHTML = '<p class="muted">No tributes yet.</p>';
       return;
     }
-    el.innerHTML = list.map((s) => {
-      let thumb = '';
-      if (s.type === 'text') thumb = `<div style="font-size:36px;">&#128221;</div>`;
-      else if (s.type === 'video') thumb = `<video muted><source src="${s.fileUrl}"></video>`;
-      else thumb = `<div style="font-size:36px;">&#128196;</div>`;
-
-      return `
-        <div class="gallery-card">
-          <div class="gallery-thumbnail" data-view="${s.id}">${thumb}</div>
-          <div class="gallery-info">
-            <div class="gallery-header"><span class="gallery-type">${typeLabel(s.type)}</span></div>
-            ${s.type === 'text' ? `<div class="gallery-text">&ldquo;${escapeHtml((s.message || '').slice(0, 90))}&rdquo;</div>` : ''}
-            ${s.type !== 'text' ? `<div class="gallery-text">${escapeHtml(s.fileName || '')}</div>` : ''}
-            <div class="gallery-meta">
-              <div><strong>To:</strong> ${escapeHtml(s.profName)}</div>
-              <div><strong>From:</strong> ${escapeHtml(s.studentName)}</div>
-              <div><strong>Date:</strong> ${new Date(s.createdAt).toLocaleString()}</div>
-            </div>
-            <div>
-              ${s.type !== 'text' ? `<button class="gallery-btn" data-view="${s.id}">View</button>` : ''}
-              <button class="gallery-btn alt" data-pdf="${s.id}">PDF</button>
-              <button class="gallery-btn alt" data-card="${s.id}">Card</button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    qsa('[data-view]', el).forEach((btn) => btn.addEventListener('click', () => viewSubmission(btn.dataset.view)));
-    qsa('[data-pdf]', el).forEach((btn) => btn.addEventListener('click', () => downloadFile(`/api/submissions/${btn.dataset.pdf}/download/pdf`, btn)));
-    qsa('[data-card]', el).forEach((btn) => btn.addEventListener('click', () => downloadFile(`/api/submissions/${btn.dataset.card}/download/card`, btn)));
+    el.innerHTML = list.map(submissionCardHTML).join('');
+    wireSubmissionCardButtons(el);
   }
 
   $('gallerySearch').addEventListener('input', (e) => {
@@ -407,7 +454,9 @@
   });
 
   function viewSubmission(id) {
-    const s = allSubmissions.find((x) => x.id === id);
+    const s = allSubmissions.find((x) => x.id === id) ||
+      loadCache(SUBMISSIONS_CACHE_KEY).find((x) => x.id === id) ||
+      loadCache(MY_SUBMISSIONS_KEY).find((x) => x.id === id);
     if (!s) return;
     let body = '';
     if (s.type === 'video') body = `<video controls autoplay><source src="${s.fileUrl}"></video>`;
@@ -475,11 +524,14 @@
   });
 
   // ---------- ADMIN: ADD PROFESSOR ----------
+  let pendingProfPhotoDataUri = null;
   $('profPhoto').addEventListener('change', (e) => {
     const f = e.target.files[0];
+    pendingProfPhotoDataUri = null;
     if (!f) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
+      pendingProfPhotoDataUri = evt.target.result;
       $('photoPreview').innerHTML = `<img src="${evt.target.result}" style="max-width:100px;border:2px solid #8b6f47;border-radius:6px;margin-top:10px;">`;
     };
     reader.readAsDataURL(f);
@@ -510,6 +562,14 @@
       const res = await fetch('/api/professors', { method: 'POST', body: fd, credentials: 'same-origin' });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error((data && data.error) || 'Could not add professor');
+
+      // Cache this professor (with the photo as a data URI, so it renders even
+      // if the server-side file doesn't survive to the next request) so it's
+      // visible to any role using this browser, not just this session.
+      const cached = loadCache(PROFESSORS_CACHE_KEY);
+      cached.push({ ...data, photo: pendingProfPhotoDataUri || data.photo });
+      saveCache(PROFESSORS_CACHE_KEY, cached);
+      pendingProfPhotoDataUri = null;
 
       $('adminInstitute').value = '';
       $('instituteCode').value = '';
@@ -559,8 +619,10 @@
   // ---------- ADMIN: SEND TO PROFS ----------
   async function loadSendPanel() {
     await loadProfessors();
-    let subs = [];
-    try { subs = await api('/api/submissions'); } catch (e) { /* ignore */ }
+    let serverSubs = [];
+    try { serverSubs = await api('/api/submissions'); } catch (e) { /* ignore */ }
+    const subs = mergeById(serverSubs, loadCache(SUBMISSIONS_CACHE_KEY));
+    saveCache(SUBMISSIONS_CACHE_KEY, subs);
 
     const byInstitute = {};
     state.professors.forEach((p) => { (byInstitute[p.institute] ||= []).push(p); });
@@ -597,7 +659,12 @@
                 <div class="media-list" style="width:100%;">
                   ${mediaSubs.map((s) => `
                     <div class="media-row">
-                      <span>${typeLabel(s.type)} from <strong>${escapeHtml(s.studentName)}</strong></span>
+                      <span style="display:flex;align-items:center;gap:8px;">
+                        <span class="media-row-thumb" data-view="${s.id}">
+                          ${s.type === 'video' ? `<video muted><source src="${s.fileUrl}"></video>` : '&#128196;'}
+                        </span>
+                        ${typeLabel(s.type)} from <strong>${escapeHtml(s.studentName)}</strong>
+                      </span>
                       <span>
                         <button class="gallery-btn alt" data-pdf="${s.id}">PDF</button>
                         <button class="gallery-btn alt" data-card="${s.id}">${s.type === 'video' ? 'Video Card' : 'Card'}</button>
@@ -614,6 +681,7 @@
 
     qsa('[data-bundle]', panel).forEach((btn) => btn.addEventListener('click', () =>
       downloadFile(`/api/professors/${btn.dataset.bundle}/download/pdf`, btn)));
+    qsa('[data-view]', panel).forEach((btn) => btn.addEventListener('click', () => viewSubmission(btn.dataset.view)));
     qsa('[data-pdf]', panel).forEach((btn) => btn.addEventListener('click', () =>
       downloadFile(`/api/submissions/${btn.dataset.pdf}/download/pdf`, btn)));
     qsa('[data-card]', panel).forEach((btn) => btn.addEventListener('click', () =>
