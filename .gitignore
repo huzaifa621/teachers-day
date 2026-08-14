@@ -7,3 +7,4 @@ uploads/generated/*
 uploads/tmp/*
 !uploads/**/.gitkeep
 .DS_Store
+.vercel

@@ -1,14 +1,13 @@
-const puppeteer = require('puppeteer');
 const { PDFDocument } = require('pdf-lib');
 const { LAYOUT } = require('./postcard-layout');
 
 let browserPromise = null;
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
+    browserPromise = import('puppeteer').then(({ default: puppeteer }) => puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    }));
   }
   return browserPromise;
 }
