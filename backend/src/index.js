@@ -15,6 +15,13 @@ const app = express();
 const PORT = process.env.PORT || 4173;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Railway (like Heroku/Render) terminates HTTPS at its edge and forwards plain HTTP
+// to the app, so Express sees every request as insecure by default. Without this,
+// the `secure: true` cookie below gets silently dropped instead of ever being set —
+// cookie-session's underlying `cookies` lib refuses to set a Secure cookie on what
+// it thinks is a plain HTTP connection.
+app.set('trust proxy', 1);
+
 // The frontend now lives on a different origin (separate Next.js deployment),
 // so the API needs explicit CORS + a cross-site-capable session cookie instead
 // of relying on same-origin defaults.
