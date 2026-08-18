@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { professors } = require('../lib/store');
 const { requireAuth, requireAdmin } = require('../lib/middleware');
+const { INSTITUTES } = require('../lib/institutes');
 const storage = require('../lib/storage');
 
 const router = express.Router();
@@ -19,28 +20,32 @@ function toPublic(p) {
   return {
     id: String(p._id),
     institute: p.institute,
-    instituteCode: p.instituteCode,
     name: p.name,
-    dept: p.dept,
+    designation: p.designation,
     email: p.email,
     photo: storage.publicUrl(p.photoPath)
   };
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  const list = await professors.all();
+  // Students only ever see professors from the institute they logged in with.
+  const list = req.session.role === 'student'
+    ? await professors.byInstitute(req.session.studentInstitute)
+    : await professors.all();
   res.json(list.map(toPublic));
 });
 
 router.post('/', requireAdmin, uploadPhoto.single('photo'), async (req, res) => {
   const institute = (req.body.institute || '').trim();
-  const instituteCode = (req.body.instituteCode || '').trim();
   const name = (req.body.name || '').trim();
-  const dept = (req.body.dept || '').trim();
+  const designation = (req.body.designation || '').trim();
   const email = (req.body.email || '').trim();
 
-  if (!institute || !name || !dept || !req.file) {
-    return res.status(400).json({ error: 'Institute, name, department and photo are required' });
+  if (!institute || !name || !designation || !req.file) {
+    return res.status(400).json({ error: 'Institute, name, designation and photo are required' });
+  }
+  if (!INSTITUTES.includes(institute)) {
+    return res.status(400).json({ error: 'Unknown institute' });
   }
 
   try {
@@ -49,7 +54,7 @@ router.post('/', requireAdmin, uploadPhoto.single('photo'), async (req, res) => 
       contentType: req.file.mimetype
     });
 
-    const prof = await professors.create({ institute, instituteCode, name, dept, email, photoPath });
+    const prof = await professors.create({ institute, name, designation, email, photoPath });
     res.json(toPublic(prof));
   } catch (err) {
     console.error('professor create failed', err);

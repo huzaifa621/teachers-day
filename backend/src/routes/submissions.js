@@ -4,6 +4,8 @@ const { professors, submissions } = require('../lib/store');
 const { requireAuth, requireStudent, requireAdmin } = require('../lib/middleware');
 const storage = require('../lib/storage');
 
+const STATUSES = ['pending', 'approved', 'rejected'];
+
 const router = express.Router();
 
 const upload = multer({
@@ -29,18 +31,25 @@ function toPublic(s) {
     fontFamily: s.fontFamily,
     textColor: s.textColor,
     fontSize: s.fontSize,
+    status: s.status || 'pending',
     createdAt: s.createdAt,
     fileUrl: s.filePath ? storage.publicUrl(s.filePath) : null
   };
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  res.json((await submissions.all()).map(toPublic));
+  const all = await submissions.all();
+  // Moderation status is admin-only — students only ever see approved tributes.
+  const visible = req.session.role === 'admin' ? all : all.filter((s) => (s.status || 'pending') === 'approved');
+  res.json(visible.map(toPublic));
 });
 
 router.get('/:id', requireAuth, async (req, res) => {
   const s = await submissions.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'Not found' });
+  if (req.session.role !== 'admin' && (s.status || 'pending') !== 'approved') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   res.json(toPublic(s));
 });
 
@@ -102,9 +111,14 @@ router.post('/', requireStudent, upload.single('file'), async (req, res) => {
   }
 });
 
-router.delete('/', requireAdmin, async (req, res) => {
-  await submissions.deleteAll();
-  res.json({ ok: true });
+router.patch('/:id/status', requireAdmin, async (req, res) => {
+  const { status } = req.body;
+  if (!STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+  const s = await submissions.setStatus(req.params.id, status);
+  if (!s) return res.status(404).json({ error: 'Not found' });
+  res.json(toPublic(s));
 });
 
 module.exports = router;

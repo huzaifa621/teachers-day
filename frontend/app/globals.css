@@ -200,6 +200,19 @@ body::before {
 .gallery-btn { background: var(--brown); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-top: 10px; margin-right: 6px; font-family: inherit; }
 .gallery-btn:hover { background: #7a5e38; }
 .gallery-btn.alt { background: var(--brown-deep); }
+.gallery-btn.approve { background: var(--success); }
+.gallery-btn.reject { background: var(--danger); }
+.gallery-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.gallery-status { font-size: 10px; padding: 3px 9px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; color: white; }
+.gallery-status.status-pending { background: #a08030; }
+.gallery-status.status-approved { background: var(--success); }
+.gallery-status.status-rejected { background: var(--danger); }
+
+/* PROFESSOR PREVIEW SLIDER */
+.slider-modal { min-width: 320px; max-width: 700px; padding: 20px; }
+.slider-body { text-align: center; }
+.slider-controls { display: flex; justify-content: space-between; margin-top: 16px; }
 
 /* SEND TO PROFS */
 .inst-group { margin-bottom: 22px; }

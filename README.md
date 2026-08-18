@@ -25,17 +25,39 @@ npm run dev
 ```
 Runs at http://localhost:3000 and calls the backend via `NEXT_PUBLIC_API_URL` (see `frontend/.env.local`).
 
-- Student login: any name + institute.
-- Admin login: password from `ADMIN_PASSWORD` in `backend/.env` (defaults to `admin123`).
+- **Student link**: `/` — name + institute (dropdown, see Institutes below). No admin option shown.
+- **Admin link**: `/admin` — password from `ADMIN_PASSWORD` in `backend/.env`. Not linked from `/`
+  anywhere; share it separately with admins only.
+- A session tied to one role visiting the other route sees a "Wrong Portal" screen with a logout
+  button, rather than silently working — the two roles are fully separate sessions.
+
+## Institutes
+
+The institute list (used by the student-login dropdown, the Add Professor dropdown, and to
+filter which professors a student sees) is a single hardcoded list in
+`backend/src/lib/institutes.js`, served publicly at `GET /api/institutes`. Update it there when
+the official list changes — no other code needs to change. Students only ever see professors
+belonging to the institute they logged in with.
 
 ## Data & storage
 
-- **MongoDB** holds `professors` and `submissions` collections (see `backend/src/lib/store.js`).
+- **MongoDB** holds `professors` (institute, name, designation, email, photo) and `submissions`
+  (message/video tribute, target professor, moderation `status`) collections
+  (see `backend/src/lib/store.js`).
 - **Supabase Storage** holds professor photos, submitted videos/PDFs, and generated postcard
   exports, in a single bucket under `photos/`, `videos/`, `pdfs/`, `generated/` prefixes
   (see `backend/src/lib/storage.js`). The bucket is expected to be **public** — matches the
   old app's behavior where uploaded files were served without auth (only the API metadata
   was gated).
+
+## Moderation (Approve / Reject)
+
+Every submitted tribute starts as `status: "pending"`. Admins review tributes in the Gallery tab
+(grouped by institute) and Approve or Reject each one — invisible to students, who only ever see
+their own submitted-successfully confirmation (with immediate download links) and, in the shared
+Gallery, only tributes that have been approved. Only **approved** tributes count toward a
+professor's combined PDF / appear in the Send-to-Profs media list — pending or rejected ones are
+excluded there even though an admin can still see and moderate them from the Gallery.
 
 ## Rendering pipeline
 
@@ -58,14 +80,19 @@ Runs at http://localhost:3000 and calls the backend via `NEXT_PUBLIC_API_URL` (s
 
 ## Admin: sending tributes to professors
 
-The "Send to Profs" tab lists every professor with a **combined PDF** of all their message
-tributes, plus each video/PDF tribute individually (**PDF** and **Card** buttons). Video
-cards are real MP4 files with the postcard frame baked around the playing video — download
-and share over WhatsApp or email as-is.
+The "Send to Profs" tab lists every professor (grouped by institute) with a **combined PDF** of
+their approved message tributes, plus each approved video/PDF tribute individually (**PDF** and
+**Card** buttons), a **Preview** button (slider through that professor's approved tributes), and
+a checkbox + email template textarea + Send button. The email template/checkbox/Send UI is a
+placeholder for now — nothing is persisted or sent; Send just confirms your selection. Real
+sending will be wired up once Google account integration is added. Video cards are real MP4
+files with the postcard frame baked around the playing video — download and share over WhatsApp
+or email as-is.
 
 ## Notes
 
-- No email sending is wired up — downloads only, by design.
-- "Clear All" (Settings) wipes the MongoDB collections but leaves uploaded files in Supabase Storage.
+- No email sending is wired up yet — downloads (and the Send-to-Profs placeholder above) only.
+- There is no bulk "clear all data" control in the UI. Clearing data means going into
+  MongoDB/Supabase directly.
 - Sessions are stored signed in the cookie itself (no server-side session store), since
   multiple backend instances shouldn't need to share session memory.

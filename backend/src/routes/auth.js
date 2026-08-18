@@ -1,4 +1,5 @@
 const express = require('express');
+const { INSTITUTES } = require('../lib/institutes');
 const router = express.Router();
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -8,6 +9,9 @@ router.post('/student', (req, res) => {
   const institute = (req.body.institute || '').trim();
   if (!name || !institute) {
     return res.status(400).json({ error: 'Name and institute are required' });
+  }
+  if (!INSTITUTES.includes(institute)) {
+    return res.status(400).json({ error: 'Please select a valid institute' });
   }
   req.session.role = 'student';
   req.session.studentName = name;

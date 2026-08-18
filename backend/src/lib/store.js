@@ -16,13 +16,16 @@ const professors = {
     const db = await getDb();
     return db.collection('professors').findOne({ _id });
   },
-  async create({ institute, instituteCode, name, dept, email, photoPath }) {
+  async byInstitute(institute) {
+    const db = await getDb();
+    return db.collection('professors').find({ institute }).sort({ name: 1 }).toArray();
+  },
+  async create({ institute, name, designation, email, photoPath }) {
     const db = await getDb();
     const doc = {
       institute,
-      instituteCode: instituteCode || null,
       name,
-      dept,
+      designation,
       email: email || null,
       photoPath,
       createdAt: new Date().toISOString()
@@ -62,21 +65,19 @@ const submissions = {
       fontFamily: fontFamily || 'Georgia, serif',
       textColor: textColor || '#2c1810',
       fontSize: fontSize || '26px',
+      status: 'pending',
       createdAt: new Date().toISOString()
     };
     const { insertedId } = await db.collection('submissions').insertOne(doc);
     return { ...doc, _id: insertedId };
   },
-  async deleteAll() {
+  async setStatus(id, status) {
+    const _id = toId(id);
+    if (!_id) return null;
     const db = await getDb();
-    await db.collection('submissions').deleteMany({});
+    await db.collection('submissions').updateOne({ _id }, { $set: { status } });
+    return db.collection('submissions').findOne({ _id });
   }
 };
 
-const clearAll = async () => {
-  const db = await getDb();
-  await db.collection('submissions').deleteMany({});
-  await db.collection('professors').deleteMany({});
-};
-
-module.exports = { professors, submissions, clearAll };
+module.exports = { professors, submissions };

@@ -1,5 +1,5 @@
-import Portal from '../components/Portal';
+import StudentPortal from '../components/StudentPortal';
 
 export default function Page() {
-  return <Portal />;
+  return <StudentPortal />;
 }

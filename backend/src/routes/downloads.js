@@ -48,9 +48,10 @@ router.get('/submissions/:id/download/pdf', requireAuth, async (req, res) => {
 router.get('/professors/:id/download/pdf', requireAdmin, async (req, res) => {
   const prof = await professors.get(req.params.id);
   if (!prof) return res.status(404).json({ error: 'Not found' });
-  const textSubs = (await submissions.byProfessor(prof._id)).filter((s) => s.type === 'text');
+  const textSubs = (await submissions.byProfessor(prof._id))
+    .filter((s) => s.type === 'text' && (s.status || 'pending') === 'approved');
   if (textSubs.length === 0) {
-    return res.status(404).json({ error: 'No text tributes for this professor yet' });
+    return res.status(404).json({ error: 'No approved text tributes for this professor yet' });
   }
   try {
     const buffer = await generateProfessorBundlePdf(prof, textSubs);

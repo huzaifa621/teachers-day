@@ -61,17 +61,4 @@ async function remove(key) {
   await getClient().storage.from(BUCKET()).remove([key]);
 }
 
-// Recursively sums object sizes under the known top-level folders. Used only
-// for the admin storage-usage stat — approximate is fine, it's not billing-critical.
-async function totalSizeBytes() {
-  const dirs = ['photos', 'videos', 'pdfs', 'generated'];
-  let total = 0;
-  for (const dir of dirs) {
-    const { data, error } = await getClient().storage.from(BUCKET()).list(dir, { limit: 1000 });
-    if (error || !data) continue;
-    total += data.reduce((sum, f) => sum + (f.metadata?.size || 0), 0);
-  }
-  return total;
-}
-
-module.exports = { uploadBuffer, uploadBufferAt, publicUrl, downloadBuffer, remove, totalSizeBytes, BUCKET };
+module.exports = { uploadBuffer, uploadBufferAt, publicUrl, downloadBuffer, remove, BUCKET };

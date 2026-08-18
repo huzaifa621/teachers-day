@@ -9,7 +9,7 @@ const professorRoutes = require('./routes/professors');
 const submissionRoutes = require('./routes/submissions');
 const downloadRoutes = require('./routes/downloads');
 const statsRoutes = require('./routes/stats');
-const adminRoutes = require('./routes/admin');
+const institutesRoutes = require('./routes/institutes');
 
 const app = express();
 const PORT = process.env.PORT || 4173;
@@ -49,7 +49,7 @@ app.use('/api/professors', professorRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api', downloadRoutes);
 app.use('/api/stats', statsRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/institutes', institutesRoutes);
 
 // Multer / upload errors land here instead of crashing the process.
 app.use((err, req, res, next) => {
