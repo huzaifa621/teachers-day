@@ -70,13 +70,20 @@ excluded there even though an admin can still see and moderate them from the Gal
 
 ## Deploying
 
-- **Backend**: intended for an always-on Node host (e.g. Railway) rather than serverless —
-  Puppeteer + ffmpeg video compositing are heavier/longer-running than a typical API route.
-  Set all vars from `backend/.env.example`, including `FRONTEND_ORIGIN` (the deployed
-  frontend's URL) and `NODE_ENV=production` (switches session cookies to
-  `SameSite=None; Secure`, required for cross-origin cookies).
-- **Frontend**: deploy as a normal Next.js app (e.g. Vercel). Set `NEXT_PUBLIC_API_URL` to
-  the deployed backend's URL.
+Both projects deploy to Railway, as two separate services in the same Railway project (one
+GitHub repo, `Root Directory` set per-service to `backend` and `frontend`). No Vercel involved.
+
+- **Backend**: always-on Node host — Puppeteer + ffmpeg video compositing are heavier/longer-running
+  than a typical API route, which is also why it's not serverless. Set all vars from
+  `backend/.env.example`, including `FRONTEND_ORIGIN` (the deployed frontend's Railway URL) and
+  `NODE_ENV=production` (switches session cookies to `SameSite=None; Secure`, required for
+  cross-origin cookies).
+- **Frontend**: plain `next build` / `next start` (no static export), so it also runs as a normal
+  Railway Node service. Set `NEXT_PUBLIC_API_URL` to the deployed backend's Railway URL.
+
+Since each service's URL depends on the other, deploy both once to get their Railway-generated
+domains, then set `FRONTEND_ORIGIN` (backend) and `NEXT_PUBLIC_API_URL` (frontend) to point at
+each other's real URLs and redeploy both.
 
 ## Admin: sending tributes to professors
 
