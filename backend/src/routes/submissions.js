@@ -1,26 +1,13 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
 const { professors, submissions } = require('../lib/store');
 const { requireAuth, requireStudent, requireAdmin } = require('../lib/middleware');
-const { DIRS } = require('../lib/paths');
+const storage = require('../lib/storage');
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (/^video\//.test(file.mimetype)) return cb(null, DIRS.videos);
-    if (file.mimetype === 'application/pdf') return cb(null, DIRS.pdfs);
-    cb(new Error('Unsupported file type'));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '';
-    cb(null, `sub_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`);
-  }
-});
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (/^video\//.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
@@ -30,34 +17,34 @@ const upload = multer({
 
 function toPublic(s) {
   return {
-    id: s.id,
-    studentName: s.student_name,
-    studentInstitute: s.student_institute,
-    profId: s.prof_id,
-    profName: s.prof_name,
-    profInstitute: s.prof_institute,
+    id: String(s._id),
+    studentName: s.studentName,
+    studentInstitute: s.studentInstitute,
+    profId: s.profId,
+    profName: s.profName,
+    profInstitute: s.profInstitute,
     type: s.type,
     message: s.message,
-    fileName: s.file_name,
-    fontFamily: s.font_family,
-    textColor: s.text_color,
-    fontSize: s.font_size,
-    createdAt: s.created_at,
-    fileUrl: s.file_path ? `/uploads/${s.file_path}` : null
+    fileName: s.fileName,
+    fontFamily: s.fontFamily,
+    textColor: s.textColor,
+    fontSize: s.fontSize,
+    createdAt: s.createdAt,
+    fileUrl: s.filePath ? storage.publicUrl(s.filePath) : null
   };
 }
 
-router.get('/', requireAuth, (req, res) => {
-  res.json(submissions.all().map(toPublic));
+router.get('/', requireAuth, async (req, res) => {
+  res.json((await submissions.all()).map(toPublic));
 });
 
-router.get('/:id', requireAuth, (req, res) => {
-  const s = submissions.get(req.params.id);
+router.get('/:id', requireAuth, async (req, res) => {
+  const s = await submissions.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'Not found' });
   res.json(toPublic(s));
 });
 
-router.post('/', requireStudent, upload.single('file'), (req, res) => {
+router.post('/', requireStudent, upload.single('file'), async (req, res) => {
   const type = req.body.type;
   const profId = req.body.profId;
   const message = (req.body.message || '').trim();
@@ -68,7 +55,7 @@ router.post('/', requireStudent, upload.single('file'), (req, res) => {
   if (!['text', 'video', 'pdf'].includes(type)) {
     return res.status(400).json({ error: 'Invalid type' });
   }
-  const prof = professors.get(profId);
+  const prof = await professors.get(profId);
   if (!prof) {
     return res.status(400).json({ error: 'Selected professor no longer exists' });
   }
@@ -85,27 +72,38 @@ router.post('/', requireStudent, upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'Uploaded file is not a PDF' });
   }
 
-  const subDir = type === 'video' ? 'videos' : 'pdfs';
-  const filePath = req.file ? `${subDir}/${req.file.filename}` : null;
+  try {
+    let filePath = null;
+    if (req.file) {
+      const dir = type === 'video' ? 'videos' : 'pdfs';
+      filePath = await storage.uploadBuffer(dir, req.file.buffer, {
+        originalName: req.file.originalname,
+        contentType: req.file.mimetype
+      });
+    }
 
-  const sub = submissions.create({
-    studentName: req.session.studentName,
-    studentInstitute: req.session.studentInstitute,
-    prof,
-    type,
-    message: type === 'text' ? message : null,
-    filePath,
-    fileName: req.file ? req.file.originalname : null,
-    fontFamily,
-    textColor,
-    fontSize
-  });
+    const sub = await submissions.create({
+      studentName: req.session.studentName,
+      studentInstitute: req.session.studentInstitute,
+      prof,
+      type,
+      message: type === 'text' ? message : null,
+      filePath,
+      fileName: req.file ? req.file.originalname : null,
+      fontFamily,
+      textColor,
+      fontSize
+    });
 
-  res.json(toPublic(sub));
+    res.json(toPublic(sub));
+  } catch (err) {
+    console.error('submission create failed', err);
+    res.status(500).json({ error: 'Could not save submission' });
+  }
 });
 
-router.delete('/', requireAdmin, (req, res) => {
-  submissions.deleteAll();
+router.delete('/', requireAdmin, async (req, res) => {
+  await submissions.deleteAll();
   res.json({ ok: true });
 });
 

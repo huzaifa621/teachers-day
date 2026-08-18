@@ -10,14 +10,14 @@ function slug(str) {
 }
 
 router.get('/submissions/:id/download/card', requireAuth, async (req, res) => {
-  const sub = submissions.get(req.params.id);
+  const sub = await submissions.get(req.params.id);
   if (!sub) return res.status(404).json({ error: 'Not found' });
-  const prof = professors.get(sub.prof_id);
+  const prof = await professors.get(sub.profId);
   if (!prof) return res.status(404).json({ error: 'Professor no longer exists' });
 
   try {
     const { buffer, mime, ext } = await generateCard(sub, prof);
-    const filename = `postcard-${slug(sub.student_name)}-to-${slug(sub.prof_name)}.${ext}`;
+    const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.profName)}.${ext}`;
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
@@ -28,14 +28,14 @@ router.get('/submissions/:id/download/card', requireAuth, async (req, res) => {
 });
 
 router.get('/submissions/:id/download/pdf', requireAuth, async (req, res) => {
-  const sub = submissions.get(req.params.id);
+  const sub = await submissions.get(req.params.id);
   if (!sub) return res.status(404).json({ error: 'Not found' });
-  const prof = professors.get(sub.prof_id);
+  const prof = await professors.get(sub.profId);
   if (!prof) return res.status(404).json({ error: 'Professor no longer exists' });
 
   try {
     const { buffer, mime, ext } = await generatePdf(sub, prof);
-    const filename = `postcard-${slug(sub.student_name)}-to-${slug(sub.prof_name)}.${ext}`;
+    const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.profName)}.${ext}`;
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
@@ -46,9 +46,9 @@ router.get('/submissions/:id/download/pdf', requireAuth, async (req, res) => {
 });
 
 router.get('/professors/:id/download/pdf', requireAdmin, async (req, res) => {
-  const prof = professors.get(req.params.id);
+  const prof = await professors.get(req.params.id);
   if (!prof) return res.status(404).json({ error: 'Not found' });
-  const textSubs = submissions.byProfessor(prof.id).filter((s) => s.type === 'text');
+  const textSubs = (await submissions.byProfessor(prof._id)).filter((s) => s.type === 'text');
   if (textSubs.length === 0) {
     return res.status(404).json({ error: 'No text tributes for this professor yet' });
   }

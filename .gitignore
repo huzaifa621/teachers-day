@@ -1,11 +1,4 @@
 node_modules/
-data/*.db
-uploads/photos/*
-uploads/videos/*
-uploads/pdfs/*
-uploads/generated/*
-uploads/tmp/*
-!uploads/**/.gitkeep
 .DS_Store
 .vercel
 .claude/

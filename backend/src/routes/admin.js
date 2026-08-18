@@ -4,33 +4,33 @@ const { requireAdmin } = require('../lib/middleware');
 
 const router = express.Router();
 
-function exportPayload() {
+async function exportPayload() {
   return {
     exportedAt: new Date().toISOString(),
-    professors: professors.all(),
-    submissions: submissions.all()
+    professors: await professors.all(),
+    submissions: await submissions.all()
   };
 }
 
-router.get('/export.json', requireAdmin, (req, res) => {
+router.get('/export.json', requireAdmin, async (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="teachers-day-export.json"');
-  res.json(exportPayload());
+  res.json(await exportPayload());
 });
 
-router.get('/backup.json', requireAdmin, (req, res) => {
+router.get('/backup.json', requireAdmin, async (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="teachers-day-backup.json"');
-  res.json(exportPayload());
+  res.json(await exportPayload());
 });
 
-router.get('/export.csv', requireAdmin, (req, res) => {
-  const rows = submissions.all();
+router.get('/export.csv', requireAdmin, async (req, res) => {
+  const rows = await submissions.all();
   const header = ['id', 'studentName', 'studentInstitute', 'profName', 'profInstitute', 'type', 'message', 'fileName', 'createdAt'];
   const escapeCsv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [header.join(',')];
   for (const s of rows) {
     lines.push([
-      s.id, s.student_name, s.student_institute, s.prof_name, s.prof_institute,
-      s.type, s.message, s.file_name, s.created_at
+      String(s._id), s.studentName, s.studentInstitute, s.profName, s.profInstitute,
+      s.type, s.message, s.fileName, s.createdAt
     ].map(escapeCsv).join(','));
   }
   res.setHeader('Content-Type', 'text/csv');
@@ -38,8 +38,8 @@ router.get('/export.csv', requireAdmin, (req, res) => {
   res.send(lines.join('\n'));
 });
 
-router.delete('/clear-all', requireAdmin, (req, res) => {
-  clearAll();
+router.delete('/clear-all', requireAdmin, async (req, res) => {
+  await clearAll();
   res.json({ ok: true });
 });
 

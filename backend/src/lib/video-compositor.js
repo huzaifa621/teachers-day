@@ -6,17 +6,17 @@ const ffmpeg = require('fluent-ffmpeg');
 const { getRects } = require('./postcard-layout');
 const { renderPNG } = require('./renderer');
 const { renderPostcardHTML } = require('./postcard-template');
-const { DIRS } = require('./paths');
+const { SCRATCH_DIR } = require('./paths');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
-
-const TMP_DIR = DIRS.tmp;
 
 const SCALE = 2;
 
 // Renders the postcard frame with a transparent hole where the video goes,
 // then has ffmpeg crop/cover the source video into that hole and overlay
 // the frame on top, producing a single self-contained MP4.
+// videoPath/outPath are local scratch files — caller handles downloading the
+// source from and uploading the result to Supabase Storage.
 async function compositeVideoCard({
   videoPath,
   profName,
@@ -40,7 +40,7 @@ async function compositeVideoCard({
   });
 
   const framePng = await renderPNG(html, { transparent: true, scale: SCALE });
-  const frameTmpPath = path.join(TMP_DIR, `frame_${crypto.randomBytes(6).toString('hex')}.png`);
+  const frameTmpPath = path.join(SCRATCH_DIR, `frame_${crypto.randomBytes(6).toString('hex')}.png`);
   fs.writeFileSync(frameTmpPath, framePng);
 
   const rects = getRects();

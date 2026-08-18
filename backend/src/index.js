@@ -1,8 +1,8 @@
+require('dotenv').config();
+
 const express = require('express');
 const session = require('cookie-session');
-const path = require('path');
-
-const { UPLOADS_DIR, ROOT } = require('./lib/paths');
+const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const professorRoutes = require('./routes/professors');
@@ -13,25 +13,36 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 4173;
+const isProd = process.env.NODE_ENV === 'production';
+
+// The frontend now lives on a different origin (separate Next.js deployment),
+// so the API needs explicit CORS + a cross-site-capable session cookie instead
+// of relying on same-origin defaults.
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session data lives signed inside the cookie itself (not a server-side store),
-// since Vercel's serverless functions don't share memory across instances —
-// a server-side session store would make logins randomly "disappear" whenever
-// a request lands on a different instance than the one that created it.
 app.use(session({
   name: 'session',
   keys: [process.env.SESSION_SECRET || 'teachers-day-postcard-portal-dev-secret-change-me'],
   maxAge: 24 * 60 * 60 * 1000,
   httpOnly: true,
-  sameSite: 'lax'
+  // Cross-site cookies require SameSite=None + Secure, which in turn requires HTTPS —
+  // fine in production, but relaxed for local http://localhost development.
+  sameSite: isProd ? 'none' : 'lax',
+  secure: isProd
 }));
 
-app.use('/uploads', express.static(UPLOADS_DIR));
-app.use('/brand', express.static(path.join(ROOT, 'assets')));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/professors', professorRoutes);
@@ -49,13 +60,11 @@ app.use((err, req, res, next) => {
   next();
 });
 
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Teachers' Day Postcard Portal running at http://localhost:${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`Teachers' Day Postcard Portal API running at http://localhost:${PORT}`);
+});
 
-  process.on('SIGINT', () => process.exit(0));
-  process.on('SIGTERM', () => process.exit(0));
-}
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
 
 module.exports = app;
