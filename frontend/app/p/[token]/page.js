@@ -2,8 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { PostcardCard, typeLabel } from '../../../components/shared';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4173';
+import { API_URL } from '../../../lib/api';
 
 export default function PublicTributesPage({ params }) {
   const { token } = use(params);
