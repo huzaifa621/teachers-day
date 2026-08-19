@@ -2,8 +2,61 @@
 
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../lib/api';
+import { getMySubmissionIds } from '../lib/mySubmissions';
 
 export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
+
+// Font/color/size are fixed by design — students no longer customize them.
+// Keep in sync with backend/src/lib/postcard-style.js.
+export const FIXED_STYLE = { fontFamily: 'Georgia, serif', textColor: '#2c1810', fontSize: '18px' };
+
+// Shrinks a name's font size as it gets longer so long professor/student
+// names don't overflow their box. Keep in sync with the equivalent in
+// backend/src/lib/postcard-template.js.
+export function nameFontSize(name, base, min = 11) {
+  const len = (name || '').trim().length;
+  if (len <= 14) return `${base}px`;
+  return `${Math.max(min, Math.round(base - (len - 14) * 0.5))}px`;
+}
+
+// Renders the full decorative postcard — same markup students see while
+// composing — so admins/professors viewing a submission see an identical card.
+export function PostcardCard({ submission: s }) {
+  return (
+    <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
+      <div className="postcard-border">
+        <div className="postcard-left">
+          {s.type === 'text' && <div className="quote" style={{ color: FIXED_STYLE.textColor, fontSize: FIXED_STYLE.fontSize }}>{s.message}</div>}
+          {s.type === 'video' && <video controls src={s.fileUrl} />}
+          {s.type === 'pdf' && <div className="muted center">{s.fileName || 'PDF tribute'}</div>}
+        </div>
+        <div className="postcard-divider" />
+        <div className="postcard-right">
+          <div className="postcard-prof">
+            <div className="postcard-prof-img">{s.profPhoto && <img src={s.profPhoto} alt={s.profName} />}</div>
+            <div className="postcard-label">To</div>
+            <div className="postcard-prof-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(s.profName, 17) }}>{s.profName}</div>
+          </div>
+          <div>
+            <div className="postcard-hr" />
+            <div className="postcard-from">
+              <div className="postcard-label">From</div>
+              <div className="postcard-student-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(s.studentName, 15) }}>{s.studentName}</div>
+            </div>
+            <div className="postcard-footer-brand">
+              <img src="/masai_logo.png" alt="masai" />
+              <span>Teachers&apos; Day</span>
+            </div>
+          </div>
+        </div>
+        <div className="postcard-stamp">
+          <img src="/masai_logo.png" alt="masai" />
+          <span>Teachers&apos; Day</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function WrongRoleNotice({ role, expected, onLogout }) {
   return (
@@ -45,25 +98,20 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
           <span className="gallery-type">{typeLabel(s.type)}</span>
           {isAdmin && <span className={`gallery-status status-${s.status}`}>{STATUS_LABEL[s.status] || 'Pending'}</span>}
         </div>
-        {s.type === 'text' && <div className="gallery-text">&ldquo;{(s.message || '').slice(0, 90)}&rdquo;</div>}
-        {s.type !== 'text' && <div className="gallery-text">{s.fileName || ''}</div>}
+        {s.message && <div className="gallery-text">&ldquo;{s.message.slice(0, 90)}&rdquo;</div>}
+        {!s.message && s.fileName && <div className="gallery-text">{s.fileName}</div>}
         <div className="gallery-meta">
           <div><strong>To:</strong> {s.profName}</div>
           <div><strong>From:</strong> {s.studentName}</div>
           <div><strong>Date:</strong> {new Date(s.createdAt).toLocaleString()}</div>
         </div>
         <div>
-          {s.type !== 'text' && <button className="gallery-btn" onClick={() => onView(s)}>View</button>}
+          <button className="gallery-btn" onClick={() => onView(s)}>View</button>
           <button
             className="gallery-btn alt"
-            disabled={busy === 'pdf'}
-            onClick={() => { setBusy('pdf'); downloadFile(`/api/submissions/${s.id}/download/pdf`).finally(() => setBusy(null)); }}
-          >{busy === 'pdf' ? 'Preparing...' : 'PDF'}</button>
-          <button
-            className="gallery-btn alt"
-            disabled={busy === 'card'}
-            onClick={() => { setBusy('card'); downloadFile(`/api/submissions/${s.id}/download/card`).finally(() => setBusy(null)); }}
-          >{busy === 'card' ? 'Preparing...' : 'Card'}</button>
+            disabled={busy === 'download'}
+            onClick={() => { setBusy('download'); downloadFile(`/api/submissions/${s.id}/download`).finally(() => setBusy(null)); }}
+          >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
         </div>
         {isAdmin && onStatusChange && (
           <div style={{ marginTop: 8 }}>
@@ -88,10 +136,9 @@ export function MediaModal({ submission, onClose }) {
   if (!submission) return null;
   return (
     <div className="modal show" onClick={(e) => { if (e.target.classList.contains('modal')) onClose(); }}>
-      <div className="modal-content">
+      <div className="modal-content postcard-modal">
         <button className="modal-close" onClick={onClose}>&times;</button>
-        {submission.type === 'video' && <video controls autoPlay><source src={submission.fileUrl} /></video>}
-        {submission.type === 'pdf' && <iframe src={submission.fileUrl} />}
+        <PostcardCard submission={submission} />
       </div>
     </div>
   );
@@ -99,15 +146,20 @@ export function MediaModal({ submission, onClose }) {
 
 // Institute-wise grouped tribute grid, shared by the Gallery tab. Admins get
 // Approve/Reject controls; students never see moderation status at all.
-export function Gallery({ active, isAdmin }) {
+export function Gallery({ active, isAdmin, mineOnly }) {
   const [subs, setSubs] = useState([]);
-  const [loaded, setLoaded] = useState(false);
   const [modalSubmission, setModalSubmission] = useState(null);
 
+  // Refetch every time the tab becomes active (rather than once ever) so a
+  // tribute submitted in this same session shows up without needing a
+  // full page reload/re-login.
   useEffect(() => {
-    if (!active || loaded) return;
-    api('/api/submissions').then((list) => { setSubs(list); setLoaded(true); }).catch(() => setLoaded(true));
-  }, [active, loaded]);
+    if (!active) return;
+    api('/api/submissions').then((list) => {
+      const mine = mineOnly ? new Set(getMySubmissionIds()) : null;
+      setSubs(mine ? list.filter((s) => mine.has(s.id)) : list);
+    }).catch(() => {});
+  }, [active, mineOnly]);
 
   async function onStatusChange(id, status) {
     setSubs((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
@@ -129,9 +181,9 @@ export function Gallery({ active, isAdmin }) {
     <div className={`tab-content ${active ? 'active' : ''}`}>
       <div className="form-section">
         <div className="top-bar" style={{ marginBottom: 15 }}>
-          <h2 style={{ margin: 0 }}>All Tributes ({subs.length})</h2>
+          <h2 style={{ margin: 0 }}>{mineOnly ? 'My Tributes' : 'All Tributes'} ({subs.length})</h2>
         </div>
-        {groups.length === 0 && <p className="muted">No tributes yet.</p>}
+        {groups.length === 0 && <p className="muted">{mineOnly ? "You haven't submitted any tributes yet." : 'No tributes yet.'}</p>}
         {groups.map(([inst, items]) => (
           <div key={inst} className="inst-group">
             <h3>{inst}</h3>
@@ -162,13 +214,7 @@ export function ProfessorPreviewSlider({ professor, submissions, onClose }) {
         <h3 style={{ marginBottom: 10 }}>{professor.name} &mdash; {submissions.length ? `${index + 1} / ${submissions.length}` : 'No approved tributes yet'}</h3>
         {s && (
           <div className="slider-body">
-            <div className="gallery-meta" style={{ marginBottom: 10 }}>
-              <div><strong>From:</strong> {s.studentName}</div>
-              <div><strong>Type:</strong> {typeLabel(s.type)}</div>
-            </div>
-            {s.type === 'text' && <div className="quote" style={{ fontSize: 22 }}>&ldquo;{s.message}&rdquo;</div>}
-            {s.type === 'video' && <video controls src={s.fileUrl} style={{ maxWidth: '100%', maxHeight: '60vh' }} />}
-            {s.type === 'pdf' && <iframe src={s.fileUrl} style={{ width: '80vw', height: '60vh', border: 'none' }} />}
+            <PostcardCard submission={s} />
           </div>
         )}
         {submissions.length > 1 && (

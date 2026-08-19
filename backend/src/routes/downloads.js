@@ -1,6 +1,6 @@
 const express = require('express');
 const { submissions, professors } = require('../lib/store');
-const { generateCard, generatePdf, generateProfessorBundlePdf } = require('../lib/downloads');
+const { generateDownload, generateProfessorBundlePdf } = require('../lib/downloads');
 const { requireAuth, requireAdmin } = require('../lib/middleware');
 
 const router = express.Router();
@@ -9,39 +9,23 @@ function slug(str) {
   return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60) || 'postcard';
 }
 
-router.get('/submissions/:id/download/card', requireAuth, async (req, res) => {
+// One download per submission: PNG for text tributes, a short looping GIF
+// (postcard frame + video composited together) for video tributes.
+router.get('/submissions/:id/download', requireAuth, async (req, res) => {
   const sub = await submissions.get(req.params.id);
   if (!sub) return res.status(404).json({ error: 'Not found' });
   const prof = await professors.get(sub.profId);
   if (!prof) return res.status(404).json({ error: 'Professor no longer exists' });
 
   try {
-    const { buffer, mime, ext } = await generateCard(sub, prof);
+    const { buffer, mime, ext } = await generateDownload(sub, prof);
     const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.profName)}.${ext}`;
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (err) {
-    console.error('card generation failed', err);
-    res.status(500).json({ error: 'Could not generate card' });
-  }
-});
-
-router.get('/submissions/:id/download/pdf', requireAuth, async (req, res) => {
-  const sub = await submissions.get(req.params.id);
-  if (!sub) return res.status(404).json({ error: 'Not found' });
-  const prof = await professors.get(sub.profId);
-  if (!prof) return res.status(404).json({ error: 'Professor no longer exists' });
-
-  try {
-    const { buffer, mime, ext } = await generatePdf(sub, prof);
-    const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.profName)}.${ext}`;
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buffer);
-  } catch (err) {
-    console.error('pdf generation failed', err);
-    res.status(500).json({ error: 'Could not generate PDF' });
+    console.error('download generation failed', err);
+    res.status(500).json({ error: 'Could not generate download' });
   }
 });
 

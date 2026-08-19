@@ -9,16 +9,19 @@ const LAYOUT = {
   borderWidth: 26,
   contentPadding: 30,
   gap: 34,
-  leftWidth: 470
+  // Tribute text/video gets 65% of the postcard; the remaining 35% carries
+  // the fixed elements (professor photo, names, masai branding).
+  leftRatio: 0.65
 };
 
 function getRects() {
-  const { width, height, borderWidth, contentPadding, gap, leftWidth } = LAYOUT;
+  const { width, height, borderWidth, contentPadding, gap, leftRatio } = LAYOUT;
 
   const contentX = borderWidth + contentPadding;
   const contentY = borderWidth + contentPadding;
   const contentW = width - 2 * (borderWidth + contentPadding);
   const contentH = height - 2 * (borderWidth + contentPadding);
+  const leftWidth = Math.round((contentW - gap) * leftRatio);
 
   const leftHole = { x: contentX, y: contentY, w: leftWidth, h: contentH };
   const rightPanel = {

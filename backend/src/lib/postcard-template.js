@@ -10,17 +10,24 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Shrinks a name's font size as it gets longer so long professor/student
+// names don't overflow their box. Keep in sync with the equivalent in
+// frontend/components/shared.js (nameFontSize).
+function nameFontSize(name, base, min = 13) {
+  const len = String(name ?? '').trim().length;
+  if (len <= 14) return `${base}px`;
+  return `${Math.max(min, Math.round(base - (len - 14) * 0.6))}px`;
+}
+
 // media: { kind: 'text', message } | { kind: 'pdf', fileName } | { kind: 'image', src } | { kind: 'hole' }
 function renderPostcardHTML({
   profName,
-  profInstitute,
   profPhotoDataUri,
   studentName,
-  studentInstitute,
   media,
   fontFamily = 'Georgia, serif',
   textColor = '#2c1810',
-  fontSize = '26px',
+  fontSize = '18px',
   transparent = false
 }) {
   const rects = getRects();
@@ -100,7 +107,7 @@ function renderPostcardHTML({
     .pdf-slot { text-align: center; color: #8b6f47; }
     .pdf-icon { font-size: 64px; margin-bottom: 10px; }
     .pdf-name { font-size: 16px; color: #6b5344; max-width: 380px; word-wrap: break-word; }
-    .left-image { width: 100%; height: 100%; object-fit: cover; }
+    .left-image { width: 100%; height: 100%; object-fit: contain; }
 
     .divider {
       position: absolute;
@@ -119,27 +126,26 @@ function renderPostcardHTML({
       border-radius: 4px;
       padding: 4px 2px;
     }
-    .prof-block { text-align: center; }
+    .prof-block { text-align: center; margin-top: 90px; }
     .prof-photo {
-      width: 110px; height: 132px; margin: 0 auto 14px;
+      width: 132px; height: 158px; margin: 0 auto 14px;
       border: 3px solid #8b6f47; border-radius: 3px; overflow: hidden;
       box-shadow: 0 4px 8px rgba(0,0,0,0.15); background: #d4c5b9;
     }
     .prof-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .label { font-weight: 700; font-size: 14px; letter-spacing: 0.5px; color: #6b5344; margin-bottom: 3px; text-transform: uppercase; }
-    .prof-name { font-size: 22px; color: ${textColor}; font-weight: 600; }
+    .prof-name { font-size: ${nameFontSize(profName, 22)}; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
     .hr { height: 1px; background: linear-gradient(90deg, transparent, #8b6f47, transparent); margin: 16px 0; }
     .from-block { text-align: center; }
-    .student-name { font-size: 18px; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
-    .student-institute { font-size: 14px; color: #6b5344; margin-top: 4px; word-wrap: break-word; }
+    .student-name { font-size: ${nameFontSize(studentName, 18)}; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
 
     .footer-brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; opacity: 0.85; }
-    .footer-brand img { height: 16px; width: auto; }
-    .footer-brand span { font-size: 10px; letter-spacing: 1.5px; color: #6b5344; text-transform: uppercase; }
+    .footer-brand img { height: 19px; width: auto; display: block; }
+    .footer-brand span { font-size: 10px; letter-spacing: 1.5px; color: #6b5344; text-transform: uppercase; line-height: 19px; }
 
     .stamp {
-      position: absolute; top: 16px; right: 16px;
-      width: 112px; height: 112px; border-radius: 50%;
+      position: absolute; top: 5px; right: 5px;
+      width: 104px; height: 104px; border-radius: 50%;
       background: #f7efdb;
       display: flex;
       align-items: center; justify-content: center; flex-direction: column;
@@ -173,7 +179,6 @@ function renderPostcardHTML({
       <div class="from-block">
         <div class="label">From</div>
         <div class="student-name">${escapeHtml(studentName)}</div>
-        <div class="student-institute">${escapeHtml(studentInstitute)}</div>
       </div>
       <div class="footer-brand">
         <img src="${MASAI_LOGO_DATA_URI}" alt="masai">

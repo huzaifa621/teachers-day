@@ -10,30 +10,31 @@ const { SCRATCH_DIR } = require('./paths');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-const SCALE = 2;
+// GIFs encode every frame as an image with no interframe compression, so unlike
+// the postcard PNG this renders at 1x (not retina) and a modest frame rate —
+// full resolution/frame-rate would make an unshareably large file.
+const SCALE = 1;
+const FPS = 10;
+const MAX_DURATION_SEC = 10;
 
 // Renders the postcard frame with a transparent hole where the video goes,
-// then has ffmpeg crop/cover the source video into that hole and overlay
-// the frame on top, producing a single self-contained MP4.
+// then has ffmpeg crop/cover a short loop of the source video into that hole
+// and overlay the frame on top, producing a single palette-optimized GIF.
 // videoPath/outPath are local scratch files — caller handles downloading the
 // source from and uploading the result to Supabase Storage.
-async function compositeVideoCard({
+async function compositeVideoGif({
   videoPath,
   profName,
-  profInstitute,
   profPhotoDataUri,
   studentName,
-  studentInstitute,
   fontFamily,
   textColor,
   outPath
 }) {
   const html = renderPostcardHTML({
     profName,
-    profInstitute,
     profPhotoDataUri,
     studentName,
-    studentInstitute,
     fontFamily,
     textColor,
     transparent: true
@@ -51,27 +52,30 @@ async function compositeVideoCard({
   const holeW = Math.round(rects.leftHole.w * SCALE);
   const holeH = Math.round(rects.leftHole.h * SCALE);
 
+  // Fit the (trimmed) video within the hole preserving its aspect ratio (no
+  // crop/zoom), letterboxed with the postcard's parchment tone, place that
+  // box into the full canvas at the hole's position, then palette-optimize
+  // for GIF (generate a palette from the composited frames, then re-encode
+  // against it — much better quality than ffmpeg's default GIF encoder).
   const filter = [
-    `[0:v]scale=${holeW}:${holeH}:force_original_aspect_ratio=increase,crop=${holeW}:${holeH}[vid]`,
-    `[vid]pad=${canvasW}:${canvasH}:${holeX}:${holeY}:color=black[vidpad]`,
-    `[vidpad][1:v]overlay=0:0:shortest=1[outv]`
+    `[0:v]trim=duration=${MAX_DURATION_SEC},setpts=PTS-STARTPTS,scale=${holeW}:${holeH}:force_original_aspect_ratio=decrease,pad=${holeW}:${holeH}:(ow-iw)/2:(oh-ih)/2:color=0xf2e3b6[vidfit]`,
+    `[vidfit]pad=${canvasW}:${canvasH}:${holeX}:${holeY}:color=black[vidpad]`,
+    `[vidpad][1:v]overlay=0:0:shortest=1[outv]`,
+    `[outv]fps=${FPS}[gifv]`,
+    `[gifv]split[a][b]`,
+    `[a]palettegen=stats_mode=diff[p]`,
+    `[b][p]paletteuse=dither=bayer:bayer_scale=3[final]`
   ].join(';');
 
   await new Promise((resolve, reject) => {
     ffmpeg()
       .input(videoPath)
-      .input(frameTmpPath)
+      // The frame is a single still PNG — without "-loop 1" its input stream
+      // ends after one frame, and overlay's shortest=1 then cuts the whole
+      // output down to that same near-zero duration.
+      .input(frameTmpPath).inputOptions(['-loop', '1'])
       .complexFilter(filter)
-      .outputOptions([
-        '-map', '[outv]',
-        '-map', '0:a?',
-        '-c:v', 'libx264',
-        '-preset', 'veryfast',
-        '-crf', '20',
-        '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac',
-        '-movflags', '+faststart'
-      ])
+      .outputOptions(['-map', '[final]', '-loop', '0'])
       .output(outPath)
       .on('end', resolve)
       .on('error', reject)
@@ -82,20 +86,4 @@ async function compositeVideoCard({
   return outPath;
 }
 
-// Extracts a single poster-frame image (for the PDF export of video tributes).
-async function extractPosterFrame(videoPath, outPngPath) {
-  await new Promise((resolve, reject) => {
-    ffmpeg(videoPath)
-      .screenshots({
-        timestamps: ['1'],
-        filename: path.basename(outPngPath),
-        folder: path.dirname(outPngPath),
-        size: '640x?'
-      })
-      .on('end', resolve)
-      .on('error', reject);
-  });
-  return outPngPath;
-}
-
-module.exports = { compositeVideoCard, extractPosterFrame };
+module.exports = { compositeVideoGif };
