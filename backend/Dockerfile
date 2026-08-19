@@ -26,6 +26,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY src ./src
+COPY assets ./assets
 
 EXPOSE 4173
 CMD ["node", "src/index.js"]
