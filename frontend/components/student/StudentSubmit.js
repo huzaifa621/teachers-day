@@ -3,10 +3,15 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { addMySubmissionIds } from '../../lib/mySubmissions';
-import { FIXED_STYLE, nameFontSize } from '../shared';
+import { FIXED_STYLE, nameFontSize, ui } from '../shared';
 import TributeInline from './TributeInline';
 
 const EMPTY_TRIBUTE = { mode: null, message: '', videoFile: null, videoUrl: null };
+
+// Keep in sync with the multer limit in backend/src/routes/submissions.js —
+// this is just an early, friendly rejection so a student doesn't wait
+// through a huge upload only to have the server reject it at the end.
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 
 export default function StudentSubmit({ active, studentName, professors, onSubmitted }) {
   const [selectedProfIds, setSelectedProfIds] = useState([]);
@@ -58,6 +63,10 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
     const profId = pendingVideoProfId.current;
     e.target.value = '';
     if (!f || !profId) return;
+    if (f.size > MAX_VIDEO_BYTES) {
+      setAlertMsg({ type: 'error', text: `That video is ${(f.size / (1024 * 1024)).toFixed(0)}MB — the limit is 200MB. Pick a smaller file.` });
+      return;
+    }
     const prevUrl = getTribute(profId).videoUrl;
     if (prevUrl) URL.revokeObjectURL(prevUrl);
     updateTribute(profId, { mode: 'video', videoFile: f, videoUrl: URL.createObjectURL(f) });
@@ -103,18 +112,18 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
   }
 
   return (
-    <div className={`tab-content ${active ? 'active' : ''}`}>
-      {alert && <div className={`alert ${alert.type} show`}>{alert.text}</div>}
-      <div className="stacked-col">
-        <div className="form-section">
-          <h2>Create Your Tribute</h2>
+    <div className={active ? 'block' : 'hidden'}>
+      {alert && <div className={`${ui.alert} ${alert.type === 'success' ? ui.alertSuccess : ui.alertError}`}>{alert.text}</div>}
+      <div className="flex flex-col gap-[30px]">
+        <div className={ui.formSection}>
+          <h2 className={ui.h2}>Create Your Tribute</h2>
 
-          <div className="form-group">
-            <label>Select Professor(s) * <span className="muted">({professors.length})</span></label>
-            <div className="professor-grid">
-              {professors.length === 0 && <p className="muted">No professors yet for your institute.</p>}
+          <div className={ui.formGroup}>
+            <label className={ui.label}>Select Professor(s) * <span className={ui.muted}>({professors.length})</span></label>
+            <div className={ui.professorGrid}>
+              {professors.length === 0 && <p className={ui.muted}>No professors yet for your institute.</p>}
               {professors.map((p) => (
-                <div key={p.id} className={`prof-card ${selectedProfIds.includes(p.id) ? 'selected' : ''}`} onClick={() => toggleProf(p.id)}>
+                <div key={p.id} className={`${ui.profCard} ${selectedProfIds.includes(p.id) ? ui.profCardSelected : ''}`} onClick={() => toggleProf(p.id)}>
                   <img src={p.photo} alt={p.name} />
                   <p><strong>{p.name}</strong></p>
                   <p style={{ color: '#8b6f47' }}>{p.designation}</p>
@@ -123,19 +132,19 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
             </div>
           </div>
 
-          <p className="muted">Click into each postcard&apos;s preview below to type a message or upload a video for that professor.</p>
+          <p className={ui.muted}>Click into each postcard&apos;s preview below to type a message or upload a video for that professor.</p>
 
           <input ref={videoInputRef} type="file" accept="video/*" onChange={onVideoChange} style={{ display: 'none' }} />
 
-          <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit Tribute'}</button>
+          <button className={`${ui.btn} ${ui.btnFull}`} disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit Tribute'}</button>
         </div>
 
         <div>
-          <h2>Live Preview {selectedProfs.length > 1 ? `(${selectedProfs.length} professors)` : ''}</h2>
+          <h2 className={ui.h2}>Live Preview {selectedProfs.length > 1 ? `(${selectedProfs.length} professors)` : ''}</h2>
           {selectedProfs.length === 0 && (
             <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
               <div className="postcard-border">
-                <div className="postcard-left"><div className="muted center">Select a professor to preview your tribute</div></div>
+                <div className="postcard-left"><div className="w-full text-center text-xs text-muted">Select a professor to preview your tribute</div></div>
                 <div className="postcard-divider" />
                 <div className="postcard-right" />
               </div>
@@ -143,7 +152,7 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
           )}
           {currentProf && (
             <>
-              <div className="muted" style={{ marginBottom: 6 }}>To: <strong>{currentProf.name}</strong></div>
+              <div className={`${ui.muted} mb-1.5`}>To: <strong>{currentProf.name}</strong></div>
               <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
                 <div className="postcard-border">
                   <div className="postcard-left">
@@ -181,10 +190,10 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
                 </div>
               </div>
               {selectedProfs.length > 1 && (
-                <div className="slider-controls-centered">
-                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i - 1 + selectedProfs.length) % selectedProfs.length)}>&larr; Prev</button>
-                  <span className="muted">{safePreviewIndex + 1} / {selectedProfs.length}</span>
-                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i + 1) % selectedProfs.length)}>Next &rarr;</button>
+                <div className="mt-3.5 flex items-center justify-center gap-[18px]">
+                  <button type="button" className={`${ui.btnSecondary} ${ui.btnSmall}`} onClick={() => setPreviewIndex((i) => (i - 1 + selectedProfs.length) % selectedProfs.length)}>&larr; Prev</button>
+                  <span className={ui.muted}>{safePreviewIndex + 1} / {selectedProfs.length}</span>
+                  <button type="button" className={`${ui.btnSecondary} ${ui.btnSmall}`} onClick={() => setPreviewIndex((i) => (i + 1) % selectedProfs.length)}>Next &rarr;</button>
                 </div>
               )}
             </>

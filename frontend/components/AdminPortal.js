@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useSession, useInstitutes } from '../lib/useSession';
-import { Gallery, WrongRoleNotice } from './shared';
+import { Gallery, WrongRoleNotice, ui } from './shared';
 import AdminLogin from './admin/AdminLogin';
 import AdminHome from './admin/AdminHome';
 import AdminAddProf from './admin/AdminAddProf';
@@ -42,18 +42,18 @@ export default function AdminPortal() {
   }
 
   return (
-    <div className="container">
-      <div className="top-bar">
-        <div className="brand-row">
-          <img src="/masai_logo.png" alt="Masai" className="brand-logo" />
-          <h1>Teachers&apos; Day Postcard Portal &mdash; Admin</h1>
+    <div className={ui.container}>
+      <div className={ui.topBar}>
+        <div className={ui.brandRow}>
+          <img src="/masai_logo.png" alt="Masai" className={ui.brandLogo} />
+          <h1 className={ui.h1}>Teachers&apos; Day Postcard Portal &mdash; Admin</h1>
         </div>
-        <button className="btn logout-btn" onClick={logout}>Logout</button>
+        <button className={`${ui.btn} ${ui.logoutBtn}`} onClick={logout}>Logout</button>
       </div>
 
-      <div className="tabs">
+      <div className={ui.tabs}>
         {TABS.map((t) => (
-          <button key={t.id} className={`tab-btn ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>{t.label}</button>
+          <button key={t.id} className={`${ui.tabBtn} ${activeTab === t.id ? ui.tabBtnActive : ''}`} onClick={() => setActiveTab(t.id)}>{t.label}</button>
         ))}
       </div>
 
