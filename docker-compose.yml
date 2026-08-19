@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    # Bound to localhost only — Nginx is the sole public entry point (80/443).
+    # The security group should never open 4173/3001 to the internet.
+    ports:
+      - "127.0.0.1:4173:4173"
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty on purpose — Nginx puts frontend+backend on one origin, so
+        # relative /api/... calls just work. See frontend/Dockerfile.
+        NEXT_PUBLIC_API_URL: ""
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      - backend

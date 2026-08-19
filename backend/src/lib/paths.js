@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Scratch space only — the durable store is Supabase Storage (see storage.js).
+// Scratch space only — the durable store is S3 (see storage.js).
 // Everything written here is transient (ffmpeg intermediate files, poster frames)
 // and safe to lose on restart.
 const SCRATCH_DIR = path.join(os.tmpdir(), 'teachers-day-scratch');

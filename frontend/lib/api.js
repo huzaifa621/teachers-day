@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4173';
+// "??" (not "||") so an intentionally empty NEXT_PUBLIC_API_URL — used in
+// production once Nginx makes frontend/backend same-origin — is respected
+// instead of falling back to the localhost default.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4173';
 
 async function api(path, opts = {}) {
   const res = await fetch(`${API_URL}${path}`, { credentials: 'include', ...opts });

@@ -1,7 +1,7 @@
 {
   "name": "teachers-day-postcard-backend",
   "version": "1.0.0",
-  "description": "Teachers' Day Postcard Portal - API server (MongoDB + Supabase Storage)",
+  "description": "Teachers' Day Postcard Portal - API server (MongoDB + S3 Storage)",
   "main": "src/index.js",
   "type": "commonjs",
   "engines": {
@@ -12,7 +12,7 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
+    "@aws-sdk/client-s3": "^3.1113.0",
     "cookie-session": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
