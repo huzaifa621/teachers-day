@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useSession, useInstitutes } from '../lib/useSession';
-import { Gallery, WrongRoleNotice, ui } from './shared';
+import { Gallery, WrongRoleNotice } from './shared';
 import StudentLogin from './student/StudentLogin';
 import StudentSubmit from './student/StudentSubmit';
 
@@ -33,18 +33,18 @@ export default function StudentPortal() {
   }
 
   return (
-    <div className={ui.container}>
-      <div className={ui.topBar}>
-        <div className={ui.brandRow}>
-          <img src="/masai_logo.png" alt="Masai" className={ui.brandLogo} />
-          <h1 className={ui.h1}>Teachers&apos; Day Postcard Portal</h1>
+    <div className="container">
+      <div className="top-bar">
+        <div className="brand-row">
+          <img src="/masai_logo.png" alt="Masai" className="brand-logo" />
+          <h1>Teachers&apos; Day Postcard Portal</h1>
         </div>
-        <button className={`${ui.btn} ${ui.logoutBtn}`} onClick={logout}>Logout</button>
+        <button className="btn logout-btn" onClick={logout}>Logout</button>
       </div>
 
-      <div className={ui.tabs}>
-        <button className={`${ui.tabBtn} ${activeTab === 'student' ? ui.tabBtnActive : ''}`} onClick={() => setActiveTab('student')}>Submit Tribute</button>
-        <button className={`${ui.tabBtn} ${activeTab === 'gallery' ? ui.tabBtnActive : ''}`} onClick={() => setActiveTab('gallery')}>Gallery</button>
+      <div className="tabs">
+        <button className={`tab-btn ${activeTab === 'student' ? 'active' : ''}`} onClick={() => setActiveTab('student')}>Submit Tribute</button>
+        <button className={`tab-btn ${activeTab === 'gallery' ? 'active' : ''}`} onClick={() => setActiveTab('gallery')}>Gallery</button>
       </div>
 
       <StudentSubmit

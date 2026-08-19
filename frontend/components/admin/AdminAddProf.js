@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
-import { ui } from '../shared';
 
 export default function AdminAddProf({ active, institutes, onAdded }) {
   const [institute, setInstitute] = useState('');
@@ -51,34 +50,34 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
   }
 
   return (
-    <div className={active ? 'block' : 'hidden'}>
-      <div className={ui.formSection}>
-        <h2 className={ui.h2}>Add Professor</h2>
-        {alert && <div className={`${ui.alert} ${alert.type === 'success' ? ui.alertSuccess : ui.alertError}`}>{alert.text}</div>}
-        <div className={ui.formRow}>
-          <div className={ui.formGroup}>
-            <label className={ui.label}>Institute *</label>
-            <select className={ui.input} value={institute} onChange={(e) => setInstitute(e.target.value)}>
+    <div className={`tab-content ${active ? 'active' : ''}`}>
+      <div className="form-section">
+        <h2>Add Professor</h2>
+        {alert && <div className={`alert ${alert.type} show`}>{alert.text}</div>}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Institute *</label>
+            <select value={institute} onChange={(e) => setInstitute(e.target.value)}>
               <option value="">Select institute</option>
               {institutes.map((inst) => <option key={inst} value={inst}>{inst}</option>)}
             </select>
           </div>
-          <div className={ui.formGroup}><label className={ui.label}>Professor Name *</label><input className={ui.input} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" /></div>
+          <div className="form-group"><label>Professor Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" /></div>
         </div>
-        <div className={ui.formRow}>
-          <div className={ui.formGroup}><label className={ui.label}>Designation *</label><input className={ui.input} type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g., Assistant Professor" /></div>
-          <div className={ui.formGroup}><label className={ui.label}>Email</label><input className={ui.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" /></div>
+        <div className="form-row">
+          <div className="form-group"><label>Designation *</label><input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g., Assistant Professor" /></div>
+          <div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" /></div>
         </div>
-        <div className={ui.formGroup}>
-          <label className={ui.label}>Upload Photo *</label>
-          <div className={ui.uploadArea} onClick={() => photoInputRef.current.click()}>
-            <p className="my-1 text-xs text-muted">Click to upload</p>
-            <p className="my-1 text-xs text-muted">JPG, PNG</p>
-            <input className="hidden" ref={photoInputRef} type="file" accept="image/*" onChange={onPhotoChange} />
+        <div className="form-group">
+          <label>Upload Photo *</label>
+          <div className="upload-area" onClick={() => photoInputRef.current.click()}>
+            <p>Click to upload</p>
+            <p className="muted">JPG, PNG</p>
+            <input ref={photoInputRef} type="file" accept="image/*" onChange={onPhotoChange} />
           </div>
           {preview && <div><img src={preview} style={{ maxWidth: 100, border: '2px solid #8b6f47', borderRadius: 6, marginTop: 10 }} /></div>}
         </div>
-        <button className={`${ui.btn} ${ui.btnFull}`} disabled={busy} onClick={submit}>Add Professor</button>
+        <button className="btn btn-full" disabled={busy} onClick={submit}>Add Professor</button>
       </div>
     </div>
   );

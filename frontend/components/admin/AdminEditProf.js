@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
-import { ui } from '../shared';
 
 export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDeleted }) {
   const [institute, setInstitute] = useState(prof.institute);
@@ -58,31 +57,31 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-5" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[460px] max-w-[90%] rounded-[10px] bg-white p-6 text-left shadow-[0_10px_40px_rgba(0,0,0,0.3)]">
-        <button className="absolute right-2.5 top-2 z-[2] h-[30px] w-[30px] rounded-full border-none bg-brown text-base leading-none text-white" onClick={onClose}>&times;</button>
-        <h3 className="mb-3.5 text-base font-bold text-ink">Edit Professor</h3>
-        {alert && <div className={`${ui.alert} ${alert.type === 'success' ? ui.alertSuccess : ui.alertError}`}>{alert.text}</div>}
-        <div className={ui.formGroup}>
-          <label className={ui.label}>Institute *</label>
-          <select className={ui.input} value={institute} onChange={(e) => setInstitute(e.target.value)}>
+    <div className="modal show" onClick={(e) => { if (e.target.classList.contains('modal')) onClose(); }}>
+      <div className="modal-content" style={{ width: 460, padding: 24, textAlign: 'left' }}>
+        <button className="modal-close" onClick={onClose}>&times;</button>
+        <h3 style={{ marginBottom: 14 }}>Edit Professor</h3>
+        {alert && <div className={`alert ${alert.type} show`}>{alert.text}</div>}
+        <div className="form-group">
+          <label>Institute *</label>
+          <select value={institute} onChange={(e) => setInstitute(e.target.value)}>
             {institutes.map((inst) => <option key={inst} value={inst}>{inst}</option>)}
           </select>
         </div>
-        <div className={ui.formGroup}><label className={ui.label}>Professor Name *</label><input className={ui.input} type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className={ui.formGroup}><label className={ui.label}>Designation *</label><input className={ui.input} type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} /></div>
-        <div className={ui.formGroup}><label className={ui.label}>Email</label><input className={ui.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-        <div className={ui.formGroup}>
-          <label className={ui.label}>Photo</label>
-          <div className={ui.uploadArea} onClick={() => photoInputRef.current.click()}>
-            <p className="my-1 text-xs text-muted">Click to change photo</p>
-            <input className="hidden" ref={photoInputRef} type="file" accept="image/*" onChange={onPhotoChange} />
+        <div className="form-group"><label>Professor Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="form-group"><label>Designation *</label><input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} /></div>
+        <div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        <div className="form-group">
+          <label>Photo</label>
+          <div className="upload-area" onClick={() => photoInputRef.current.click()}>
+            <p>Click to change photo</p>
+            <input ref={photoInputRef} type="file" accept="image/*" onChange={onPhotoChange} />
           </div>
           {preview && <div><img src={preview} style={{ maxWidth: 100, border: '2px solid #8b6f47', borderRadius: 6, marginTop: 10 }} /></div>}
         </div>
-        <div className="mt-4 flex gap-2.5">
-          <button className={`${ui.btn} flex-1`} disabled={busy} onClick={save}>Save Changes</button>
-          <button className="rounded bg-danger px-3 py-1.5 font-serif text-[11px] text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={busy} onClick={remove}>Delete</button>
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button className="btn" disabled={busy} onClick={save} style={{ flex: 1 }}>Save Changes</button>
+          <button className="gallery-btn reject" disabled={busy} onClick={remove}>Delete</button>
         </div>
       </div>
     </div>

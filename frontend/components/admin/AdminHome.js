@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import { ui } from '../shared';
 
 export default function AdminHome({ active }) {
   const [stats, setStats] = useState(null);
@@ -13,14 +12,14 @@ export default function AdminHome({ active }) {
   }, [active]);
 
   return (
-    <div className={active ? 'block' : 'hidden'}>
-      <div className={ui.formSection}>
-        <h2 className={ui.h2}>Dashboard</h2>
-        <div className={ui.statsGrid}>
-          <div className={ui.statCard}><h3 className="mb-1 text-2xl text-brown">{stats?.institutes ?? 0}</h3><p className="text-xs text-muted">Institutes</p></div>
-          <div className={ui.statCard}><h3 className="mb-1 text-2xl text-brown">{stats?.professors ?? 0}</h3><p className="text-xs text-muted">Professors</p></div>
-          <div className={ui.statCard}><h3 className="mb-1 text-2xl text-brown">{stats?.submissions ?? 0}</h3><p className="text-xs text-muted">Tributes</p></div>
-          <div className={ui.statCard}><h3 className="mb-1 text-2xl text-brown">{stats?.students ?? 0}</h3><p className="text-xs text-muted">Students</p></div>
+    <div className={`tab-content ${active ? 'active' : ''}`}>
+      <div className="form-section">
+        <h2>Dashboard</h2>
+        <div className="stats-grid">
+          <div className="stat-card"><h3>{stats?.institutes ?? 0}</h3><p>Institutes</p></div>
+          <div className="stat-card"><h3>{stats?.professors ?? 0}</h3><p>Professors</p></div>
+          <div className="stat-card"><h3>{stats?.submissions ?? 0}</h3><p>Tributes</p></div>
+          <div className="stat-card"><h3>{stats?.students ?? 0}</h3><p>Students</p></div>
         </div>
       </div>
     </div>
