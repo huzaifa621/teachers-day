@@ -8,6 +8,11 @@ import TributeInline from './TributeInline';
 
 const EMPTY_TRIBUTE = { mode: null, message: '', videoFile: null, videoUrl: null };
 
+// Keep in sync with the multer limit in backend/src/routes/submissions.js —
+// this is just an early, friendly rejection so a student doesn't wait
+// through a huge upload only to have the server reject it at the end.
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+
 export default function StudentSubmit({ active, studentName, professors, onSubmitted }) {
   const [selectedProfIds, setSelectedProfIds] = useState([]);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -58,6 +63,10 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
     const profId = pendingVideoProfId.current;
     e.target.value = '';
     if (!f || !profId) return;
+    if (f.size > MAX_VIDEO_BYTES) {
+      setAlertMsg({ type: 'error', text: `That video is ${(f.size / (1024 * 1024)).toFixed(0)}MB — the limit is 200MB. Pick a smaller file.` });
+      return;
+    }
     const prevUrl = getTribute(profId).videoUrl;
     if (prevUrl) URL.revokeObjectURL(prevUrl);
     updateTribute(profId, { mode: 'video', videoFile: f, videoUrl: URL.createObjectURL(f) });

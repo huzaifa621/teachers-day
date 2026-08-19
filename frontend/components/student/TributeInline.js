@@ -76,6 +76,7 @@ export default function TributeInline({ tribute, onPickText, onPickVideo, onMess
       <button type="button" className="tribute-picker-btn" onClick={onPickText}>Type</button>
       <span className="tribute-picker-or">Or</span>
       <button type="button" className="tribute-picker-btn" onClick={onPickVideo}>Upload Video</button>
+      <span className="muted tiny">Videos up to 200MB</span>
     </div>
   );
 }
