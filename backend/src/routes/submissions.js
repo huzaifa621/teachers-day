@@ -41,7 +41,20 @@ function toPublic(s) {
 
 router.get('/', requireAuth, async (req, res) => {
   const all = await submissions.all();
-  // Moderation status is admin-only — students only ever see approved tributes.
+
+  // A student's own "My Tributes" gallery passes back the ids it remembered
+  // (see lib/mySubmissions.js — there's no real student account to scope by,
+  // so the browser tracks its own submission ids). Those get returned
+  // regardless of moderation status, since a student should be able to see
+  // their own pending/rejected tributes — but only the exact ids they hold,
+  // not the general moderation queue.
+  if (req.query.ids !== undefined) {
+    const idSet = new Set(String(req.query.ids).split(',').filter(Boolean));
+    const mine = all.filter((s) => idSet.has(String(s._id)));
+    return res.json(mine.map(toPublic));
+  }
+
+  // Otherwise, moderation status is admin-only — everyone else only sees approved tributes.
   const visible = req.session.role === 'admin' ? all : all.filter((s) => (s.status || 'pending') === 'approved');
   res.json(visible.map(toPublic));
 });

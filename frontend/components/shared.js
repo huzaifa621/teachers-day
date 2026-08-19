@@ -82,7 +82,7 @@ export function groupByInstitute(list, instituteKey) {
 
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
-export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
+export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange }) {
   const [busy, setBusy] = useState(null);
 
   let thumb;
@@ -96,7 +96,7 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
       <div className="gallery-info">
         <div className="gallery-header">
           <span className="gallery-type">{typeLabel(s.type)}</span>
-          {isAdmin && <span className={`gallery-status status-${s.status}`}>{STATUS_LABEL[s.status] || 'Pending'}</span>}
+          {(isAdmin || showStatus) && <span className={`gallery-status status-${s.status}`}>{STATUS_LABEL[s.status] || 'Pending'}</span>}
         </div>
         {s.message && <div className="gallery-text">&ldquo;{s.message.slice(0, 90)}&rdquo;</div>}
         {!s.message && s.fileName && <div className="gallery-text">{s.fileName}</div>}
@@ -155,10 +155,11 @@ export function Gallery({ active, isAdmin, mineOnly }) {
   // full page reload/re-login.
   useEffect(() => {
     if (!active) return;
-    api('/api/submissions').then((list) => {
-      const mine = mineOnly ? new Set(getMySubmissionIds()) : null;
-      setSubs(mine ? list.filter((s) => mine.has(s.id)) : list);
-    }).catch(() => {});
+    // "My Tributes" asks the backend for exactly these ids, regardless of
+    // moderation status — the plain list only ever returns approved ones,
+    // which was hiding a student's own still-pending submissions.
+    const path = mineOnly ? `/api/submissions?ids=${getMySubmissionIds().join(',')}` : '/api/submissions';
+    api(path).then(setSubs).catch(() => {});
   }, [active, mineOnly]);
 
   async function onStatusChange(id, status) {
@@ -189,7 +190,7 @@ export function Gallery({ active, isAdmin, mineOnly }) {
             <h3>{inst}</h3>
             <div className="gallery-grid">
               {items.map((s) => (
-                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} />
+                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} showStatus={mineOnly} onStatusChange={isAdmin ? onStatusChange : null} />
               ))}
             </div>
           </div>
