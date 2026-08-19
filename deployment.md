@@ -220,3 +220,5 @@ Note: logging into the admin panel requires HTTPS to work correctly (secure cook
 | Route 53 hosted zone | ~$0.50 |
 | S3 storage/requests | ~$1–5 |
 | **Total** | **~$35–40/mo** (plus your Atlas plan) |
+
+---
