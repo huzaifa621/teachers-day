@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
+import { copyToClipboard } from '../../lib/clipboard';
 import { typeLabel, ProfessorPreviewSlider } from '../shared';
 
 export default function AdminSend({ active, professors }) {
@@ -22,7 +23,7 @@ export default function AdminSend({ active, professors }) {
     try {
       const { token } = await api(`/api/professors/${profId}/link`);
       const url = `${window.location.origin}/p/${token}`;
-      await navigator.clipboard.writeText(url);
+      await copyToClipboard(url);
       setCopiedId(profId);
       setLinkError(null);
       setTimeout(() => setCopiedId((id) => (id === profId ? null : id)), 2000);
