@@ -2,14 +2,12 @@
 // dropdown and the student-login dropdown. Update here when the official
 // list changes.
 const INSTITUTES = [
-  'IIT Mandi',
-  'BITSoM',
-  'IIT Guwahatti',
-  'IIM Sirmaur',
   'Vishlesan i-hub - IIT Patna',
   'E&ICT Academy, IIT Roorkee',
+  'BITSoM',
   'IIM Mumbai',
   'IIMROH',
+  'IIM Sirmaur',
   'MIT IDSS',
   'IIM Trichy',
   'IIT Delhi',
