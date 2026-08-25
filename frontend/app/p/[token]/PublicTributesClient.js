@@ -3,12 +3,10 @@
 import { useState } from 'react';
 import { PostcardCard, typeLabel } from '../../../components/shared';
 import { copyToClipboard } from '../../../lib/clipboard';
-import { openLinkedInShare, professorLinkedInCaption } from '../../../lib/share';
 
 export default function PublicTributesClient({ professor, submissions }) {
   const [index, setIndex] = useState(0);
-  const [copied, setCopied] = useState(false);
-  const [justShared, setJustShared] = useState(false);
+  const [toast, setToast] = useState(null);
 
   if (!professor) {
     return (
@@ -21,32 +19,24 @@ export default function PublicTributesClient({ professor, submissions }) {
 
   const s = submissions[index];
 
+  function showToast(text) {
+    setToast(text);
+    setTimeout(() => setToast(null), 2000);
+  }
+
   async function handleShare() {
     try {
       await copyToClipboard(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      showToast('Shareable link copied!');
     } catch (_) {
-      alert('Could not copy the link');
+      showToast('Could not copy the link');
     }
-  }
-
-  // Same LinkedIn caveat as the student flow (see lib/share.js): the compose
-  // box can't be pre-filled, so this copies the caption to the clipboard
-  // right as the popup opens — no download here, unlike the student flow.
-  function handleLinkedInShare() {
-    const link = window.location.href;
-    openLinkedInShare(link);
-    copyToClipboard(professorLinkedInCaption({ profName: professor.name, link })).catch(() => {});
-    setJustShared(true);
-    setTimeout(() => setJustShared(false), 2500);
   }
 
   return (
     <div className="container" style={{ maxWidth: 820, paddingTop: 40, paddingBottom: 60 }}>
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 10, display: 'flex', gap: 8 }}>
-        <button className="btn-secondary btn-small" onClick={handleShare}>{copied ? 'Copied!' : 'Share'}</button>
-        <button className="btn-secondary btn-small" onClick={handleLinkedInShare}>{justShared ? 'Copied caption!' : 'Share on LinkedIn'}</button>
+        <button className="btn-secondary btn-small" onClick={handleShare}>Share</button>
       </div>
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
@@ -78,6 +68,8 @@ export default function PublicTributesClient({ professor, submissions }) {
           <button className="btn-secondary btn-small" onClick={() => setIndex((i) => (i + 1) % submissions.length)}>Next &rarr;</button>
         </div>
       )}
+
+      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </div>
   );
 }

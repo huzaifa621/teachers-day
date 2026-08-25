@@ -84,28 +84,8 @@ export function groupByInstitute(list, instituteKey) {
 
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
-export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
+export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLinkedIn }) {
   const [busy, setBusy] = useState(null);
-  const [justShared, setJustShared] = useState(false);
-
-  function shareLink() {
-    return `${window.location.origin}/s/${s.id}`;
-  }
-
-  // LinkedIn's share dialog can't be handed pre-filled caption text (see
-  // lib/share.js), so this is the closest available substitute: copy the
-  // caption to the clipboard and download the postcard silently, right as
-  // the LinkedIn compose popup opens — the student just pastes the caption.
-  // window.open must fire first/synchronously or some browsers treat it as
-  // a blocked popup once it's no longer directly inside the click handler.
-  function handleLinkedInShare() {
-    const link = shareLink();
-    openLinkedInShare(link);
-    copyToClipboard(studentLinkedInCaption({ studentName: s.studentName, profName: s.profName, link })).catch(() => {});
-    downloadFile(`/api/submissions/${s.id}/download`).catch(() => {});
-    setJustShared(true);
-    setTimeout(() => setJustShared(false), 2500);
-  }
 
   let thumb;
   if (s.type === 'text') thumb = <div style={{ fontSize: 36 }}>&#128221;</div>;
@@ -139,7 +119,7 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
             >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
           )}
           {!isAdmin && (
-            <button className="gallery-btn alt" onClick={handleLinkedInShare}>{justShared ? 'Copied caption!' : 'Share on LinkedIn'}</button>
+            <button className="gallery-btn alt" onClick={() => onShareLinkedIn(s)}>Share on LinkedIn</button>
           )}
         </div>
         {isAdmin && onStatusChange && (
@@ -173,11 +153,66 @@ export function MediaModal({ submission, onClose }) {
   );
 }
 
+// LinkedIn's share dialog can't be handed pre-filled caption text (see
+// lib/share.js) — this modal is the deliberate, explicit substitute: the
+// student reads the caption, downloads the card, copies the caption, and
+// (optionally) opens LinkedIn themselves, each as its own click.
+export function LinkedInShareModal({ submission, onClose }) {
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  if (!submission) return null;
+
+  const link = `${window.location.origin}/s/${submission.id}`;
+  const caption = studentLinkedInCaption({ studentName: submission.studentName, profName: submission.profName, link });
+
+  function showToast(text) {
+    setToast(text);
+    setTimeout(() => setToast(null), 2000);
+  }
+
+  async function handleDownload() {
+    setBusy(true);
+    try {
+      await downloadFile(`/api/submissions/${submission.id}/download`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCopy() {
+    try {
+      await copyToClipboard(caption);
+      showToast('Post content copied!');
+    } catch (_) {
+      showToast('Could not copy — try selecting the text manually');
+    }
+  }
+
+  return (
+    <div className="modal show" onClick={(e) => { if (e.target.classList.contains('modal')) onClose(); }}>
+      <div className="modal-content linkedin-modal">
+        <button className="modal-close" onClick={onClose}>&times;</button>
+        <h3>Share on LinkedIn</h3>
+        <p className="muted">Download your card and copy the post below, then share it on LinkedIn.</p>
+        <div className="caption-box">{caption}</div>
+        <div className="linkedin-modal-actions">
+          <button className="gallery-btn alt" disabled={busy} onClick={handleDownload}>{busy ? 'Preparing...' : 'Download'}</button>
+          <button className="gallery-btn alt" onClick={handleCopy}>Copy</button>
+          <button className="gallery-btn" onClick={() => openLinkedInShare(link)}>Open LinkedIn</button>
+        </div>
+      </div>
+      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+    </div>
+  );
+}
+
 // Institute-wise grouped tribute grid, shared by the Gallery tab. Admins get
 // Approve/Reject controls; students never see moderation status at all.
 export function Gallery({ active, isAdmin, mineOnly }) {
   const [subs, setSubs] = useState([]);
   const [modalSubmission, setModalSubmission] = useState(null);
+  const [linkedInSubmission, setLinkedInSubmission] = useState(null);
 
   // Refetch every time the tab becomes active (rather than once ever) so a
   // tribute submitted in this same session shows up without needing a
@@ -219,13 +254,14 @@ export function Gallery({ active, isAdmin, mineOnly }) {
             <h3>{inst}</h3>
             <div className="gallery-grid">
               {items.map((s) => (
-                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} />
+                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} onShareLinkedIn={setLinkedInSubmission} />
               ))}
             </div>
           </div>
         ))}
       </div>
       <MediaModal submission={modalSubmission} onClose={() => setModalSubmission(null)} />
+      <LinkedInShareModal submission={linkedInSubmission} onClose={() => setLinkedInSubmission(null)} />
     </div>
   );
 }
