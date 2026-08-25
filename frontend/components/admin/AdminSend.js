@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { copyToClipboard } from '../../lib/clipboard';
-import { typeLabel, ProfessorPreviewSlider } from '../shared';
+import { typeLabel, ProfessorPreviewSlider, Loader, ErrorState } from '../shared';
 
-export default function AdminSend({ active, professors }) {
+export default function AdminSend({ active, professors, profsLoading, profsError, onRetryProfessors }) {
   const [subs, setSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [previewProf, setPreviewProf] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [linkError, setLinkError] = useState(null);
@@ -32,10 +34,19 @@ export default function AdminSend({ active, professors }) {
     }
   }
 
+  function loadSubs() {
+    setLoading(true);
+    setLoadError(null);
+    api('/api/submissions')
+      .then(setSubs)
+      .catch((e) => setLoadError(e.message || 'Could not load tributes.'))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
     if (!active) return;
-    api('/api/submissions').then(setSubs).catch(() => {});
-  }, [active]);
+    loadSubs();
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const approvedSubs = subs.filter((s) => s.status === 'approved');
 
@@ -52,8 +63,11 @@ export default function AdminSend({ active, professors }) {
 
         {linkError && <div className="alert show" style={{ display: 'block', background: '#f0e6cf', borderLeft: '4px solid var(--brown)' }}>{linkError}</div>}
 
-        {professors.length === 0 && <p className="muted">No professors yet.</p>}
-        {professors.map((p) => {
+        {(loading || profsLoading) && <Loader text="Loading tributes…" />}
+        {!loading && loadError && <ErrorState message={loadError} onRetry={loadSubs} />}
+        {!profsLoading && profsError && <ErrorState message={profsError} onRetry={onRetryProfessors} />}
+        {!loading && !loadError && !profsLoading && !profsError && professors.length === 0 && <p className="muted">No professors yet.</p>}
+        {!loading && !loadError && !profsLoading && !profsError && professors.map((p) => {
           const profSubs = approvedSubs.filter((s) => s.profId === p.id);
           return (
             <div key={p.id} className="prof-send-row">

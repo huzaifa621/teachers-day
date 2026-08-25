@@ -37,7 +37,7 @@ export default function AdminLogin({ onLoggedIn }) {
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter admin password" onKeyDown={(e) => e.key === 'Enter' && submit()} />
         </div>
         {error && <div className="alert error show">{error}</div>}
-        <button className="btn" disabled={busy} onClick={submit}>Login as Admin</button>
+        <button className="btn" disabled={busy} onClick={submit}>{busy ? 'Logging in...' : 'Login as Admin'}</button>
       </div>
     </div>
   );

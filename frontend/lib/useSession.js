@@ -26,6 +26,19 @@ export function useSession() {
 
 export function useInstitutes() {
   const [institutes, setInstitutes] = useState([]);
-  useEffect(() => { api('/api/institutes').then(setInstitutes).catch(() => {}); }, []);
-  return institutes;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  function load() {
+    setLoading(true);
+    setError(null);
+    api('/api/institutes')
+      .then(setInstitutes)
+      .catch((e) => setError(e.message || 'Could not load institutes.'))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { institutes, loading, error, retry: load };
 }

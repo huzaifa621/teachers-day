@@ -76,6 +76,27 @@ export function WrongRoleNotice({ role, expected, onLogout }) {
   );
 }
 
+// Used everywhere a list is fetched, so a genuinely empty result (0 items)
+// never looks identical to "still loading" or "the fetch failed" — those
+// three states need distinct UI or a failure silently reads as empty data.
+export function Loader({ text = 'Loading…' }) {
+  return (
+    <div className="loading-row">
+      <span className="spinner" aria-hidden="true" />
+      {text}
+    </div>
+  );
+}
+
+export function ErrorState({ message, onRetry }) {
+  return (
+    <div className="error-box">
+      <span>{message || 'Something went wrong.'}</span>
+      {onRetry && <button type="button" className="btn-secondary btn-small" onClick={onRetry}>Retry</button>}
+    </div>
+  );
+}
+
 export function groupByInstitute(list, instituteKey) {
   const byInstitute = {};
   list.forEach((item) => { (byInstitute[item[instituteKey]] ||= []).push(item); });
@@ -115,7 +136,12 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLink
             <button
               className="gallery-btn alt"
               disabled={busy === 'download'}
-              onClick={() => { setBusy('download'); downloadFile(`/api/submissions/${s.id}/download`).finally(() => setBusy(null)); }}
+              onClick={() => {
+                setBusy('download');
+                downloadFile(`/api/submissions/${s.id}/download`)
+                  .catch((e) => alert(e.message || 'Download failed — try again'))
+                  .finally(() => setBusy(null));
+              }}
             >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
           )}
           {!isAdmin && (
@@ -175,6 +201,8 @@ export function LinkedInShareModal({ submission, onClose }) {
     setBusy(true);
     try {
       await downloadFile(`/api/submissions/${submission.id}/download`);
+    } catch (e) {
+      showToast(e.message || 'Download failed — try again');
     } finally {
       setBusy(false);
     }
@@ -211,22 +239,34 @@ export function LinkedInShareModal({ submission, onClose }) {
 // Approve/Reject controls; students never see moderation status at all.
 export function Gallery({ active, isAdmin, mineOnly }) {
   const [subs, setSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [modalSubmission, setModalSubmission] = useState(null);
   const [linkedInSubmission, setLinkedInSubmission] = useState(null);
+
+  function load() {
+    // "My Tributes" asks the backend for exactly these ids, regardless of
+    // moderation status — the plain list only ever returns approved ones,
+    // which was hiding a student's own still-pending submissions.
+    const path = mineOnly ? `/api/submissions?ids=${getMySubmissionIds().join(',')}` : '/api/submissions';
+    setLoading(true);
+    setLoadError(null);
+    api(path)
+      .then((data) => setSubs(data))
+      .catch((e) => setLoadError(e.message || 'Could not load tributes.'))
+      .finally(() => setLoading(false));
+  }
 
   // Refetch every time the tab becomes active (rather than once ever) so a
   // tribute submitted in this same session shows up without needing a
   // full page reload/re-login.
   useEffect(() => {
     if (!active) return;
-    // "My Tributes" asks the backend for exactly these ids, regardless of
-    // moderation status — the plain list only ever returns approved ones,
-    // which was hiding a student's own still-pending submissions.
-    const path = mineOnly ? `/api/submissions?ids=${getMySubmissionIds().join(',')}` : '/api/submissions';
-    api(path).then(setSubs).catch(() => {});
-  }, [active, mineOnly]);
+    load();
+  }, [active, mineOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onStatusChange(id, status) {
+    const prevSubs = subs;
     setSubs((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
     try {
       await api(`/api/submissions/${id}/status`, {
@@ -235,8 +275,9 @@ export function Gallery({ active, isAdmin, mineOnly }) {
         body: JSON.stringify({ status })
       });
     } catch (e) {
-      // reload on failure so UI reflects the true server state
-      api('/api/submissions').then(setSubs).catch(() => {});
+      // roll back so the UI doesn't silently show a status that never saved
+      setSubs(prevSubs);
+      alert(`Could not update status: ${e.message || 'unknown error'}`);
     }
   }
 
@@ -248,8 +289,10 @@ export function Gallery({ active, isAdmin, mineOnly }) {
         <div className="top-bar" style={{ marginBottom: 15 }}>
           <h2 style={{ margin: 0 }}>{mineOnly ? 'My Tributes' : 'All Tributes'} ({subs.length})</h2>
         </div>
-        {groups.length === 0 && <p className="muted">{mineOnly ? "You haven't submitted any tributes yet." : 'No tributes yet.'}</p>}
-        {groups.map(([inst, items]) => (
+        {loading && <Loader text="Loading tributes…" />}
+        {!loading && loadError && <ErrorState message={loadError} onRetry={load} />}
+        {!loading && !loadError && groups.length === 0 && <p className="muted">{mineOnly ? "You haven't submitted any tributes yet." : 'No tributes yet.'}</p>}
+        {!loading && !loadError && groups.map(([inst, items]) => (
           <div key={inst} className="inst-group">
             <h3>{inst}</h3>
             <div className="gallery-grid">

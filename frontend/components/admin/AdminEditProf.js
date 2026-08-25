@@ -3,6 +3,10 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 
+// Keep in sync with the multer limit in backend/src/routes/professors.js —
+// an early, friendly rejection instead of waiting on a doomed upload.
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
 export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDeleted }) {
   const [institute, setInstitute] = useState(prof.institute);
   const [name, setName] = useState(prof.name);
@@ -16,8 +20,13 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
 
   function onPhotoChange(e) {
     const f = e.target.files[0];
-    setPhoto(f || null);
     if (!f) return;
+    if (f.size > MAX_PHOTO_BYTES) {
+      setAlertMsg({ type: 'error', text: `That photo is ${(f.size / (1024 * 1024)).toFixed(1)}MB — the limit is 8MB. Pick a smaller file.` });
+      e.target.value = '';
+      return;
+    }
+    setPhoto(f);
     const reader = new FileReader();
     reader.onload = (evt) => setPreview(evt.target.result);
     reader.readAsDataURL(f);
@@ -40,6 +49,7 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
       onSaved(updated);
     } catch (e) {
       setAlertMsg({ type: 'error', text: e.message });
+    } finally {
       setBusy(false);
     }
   }
@@ -52,6 +62,7 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
       onDeleted(prof.id);
     } catch (e) {
       setAlertMsg({ type: 'error', text: e.message });
+    } finally {
       setBusy(false);
     }
   }
@@ -80,8 +91,8 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
           {preview && <div><img src={preview} style={{ maxWidth: 100, border: '2px solid #8b6f47', borderRadius: 6, marginTop: 10 }} /></div>}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-          <button className="btn" disabled={busy} onClick={save} style={{ flex: 1 }}>Save Changes</button>
-          <button className="gallery-btn reject" disabled={busy} onClick={remove}>Delete</button>
+          <button className="btn" disabled={busy} onClick={save} style={{ flex: 1 }}>{busy ? 'Saving...' : 'Save Changes'}</button>
+          <button className="gallery-btn reject" disabled={busy} onClick={remove}>{busy ? 'Working...' : 'Delete'}</button>
         </div>
       </div>
     </div>

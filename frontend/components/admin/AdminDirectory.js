@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { groupByInstitute } from '../shared';
+import { groupByInstitute, Loader, ErrorState } from '../shared';
 import AdminEditProf from './AdminEditProf';
 import { api } from '../../lib/api';
 
-export default function AdminDirectory({ active, professors, institutes, onChanged }) {
+export default function AdminDirectory({ active, professors, institutes, onChanged, loading, loadError, onRetry }) {
   const [editingProf, setEditingProf] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const groups = groupByInstitute(professors, 'institute');
@@ -27,8 +27,10 @@ export default function AdminDirectory({ active, professors, institutes, onChang
     <div className={`tab-content ${active ? 'active' : ''}`}>
       <div className="form-section">
         <h2>Professor Directory</h2>
-        {groups.length === 0 && <p className="muted">No professors yet.</p>}
-        {groups.map(([inst, profs]) => (
+        {loading && <Loader text="Loading professors…" />}
+        {!loading && loadError && <ErrorState message={loadError} onRetry={onRetry} />}
+        {!loading && !loadError && groups.length === 0 && <p className="muted">No professors yet.</p>}
+        {!loading && !loadError && groups.map(([inst, profs]) => (
           <div key={inst} className="inst-group">
             <h3>{inst}</h3>
             <div className="professor-grid" style={{ maxHeight: 'none' }}>

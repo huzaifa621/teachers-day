@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { api } from '../../lib/api';
 
-export default function StudentLogin({ institutes, onLoggedIn }) {
+export default function StudentLogin({ institutes, institutesLoading, institutesError, onRetryInstitutes, onLoggedIn }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [institute, setInstitute] = useState('');
@@ -48,13 +48,19 @@ export default function StudentLogin({ institutes, onLoggedIn }) {
         </div>
         <div className="form-group">
           <label>Institute *</label>
-          <select value={institute} onChange={(e) => setInstitute(e.target.value)}>
-            <option value="">Select your institute</option>
+          <select value={institute} onChange={(e) => setInstitute(e.target.value)} disabled={institutesLoading || !!institutesError}>
+            <option value="">{institutesLoading ? 'Loading institutes…' : 'Select your institute'}</option>
             {institutes.map((inst) => <option key={inst} value={inst}>{inst}</option>)}
           </select>
+          {institutesError && (
+            <div className="alert error show" style={{ marginTop: 8 }}>
+              Couldn&apos;t load the institute list: {institutesError}{' '}
+              <button type="button" className="btn-secondary btn-small" style={{ marginLeft: 8 }} onClick={onRetryInstitutes}>Retry</button>
+            </div>
+          )}
         </div>
         {error && <div className="alert error show">{error}</div>}
-        <button className="btn" disabled={busy} onClick={submit}>Enter Portal</button>
+        <button className="btn" disabled={busy || institutesLoading || !!institutesError} onClick={submit}>{busy ? 'Entering...' : 'Enter Portal'}</button>
       </div>
     </div>
   );

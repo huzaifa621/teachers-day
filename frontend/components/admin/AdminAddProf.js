@@ -3,6 +3,10 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 
+// Keep in sync with the multer limit in backend/src/routes/professors.js —
+// an early, friendly rejection instead of waiting on a doomed upload.
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
 export default function AdminAddProf({ active, institutes, onAdded }) {
   const [institute, setInstitute] = useState('');
   const [name, setName] = useState('');
@@ -16,8 +20,15 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
 
   function onPhotoChange(e) {
     const f = e.target.files[0];
-    setPhoto(f || null);
-    if (!f) { setPreview(null); return; }
+    if (!f) { setPhoto(null); setPreview(null); return; }
+    if (f.size > MAX_PHOTO_BYTES) {
+      setAlertMsg({ type: 'error', text: `That photo is ${(f.size / (1024 * 1024)).toFixed(1)}MB — the limit is 8MB. Pick a smaller file.` });
+      e.target.value = '';
+      setPhoto(null);
+      setPreview(null);
+      return;
+    }
+    setPhoto(f);
     const reader = new FileReader();
     reader.onload = (evt) => setPreview(evt.target.result);
     reader.readAsDataURL(f);
@@ -77,7 +88,7 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
           </div>
           {preview && <div><img src={preview} style={{ maxWidth: 100, border: '2px solid #8b6f47', borderRadius: 6, marginTop: 10 }} /></div>}
         </div>
-        <button className="btn btn-full" disabled={busy} onClick={submit}>Add Professor</button>
+        <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Adding...' : 'Add Professor'}</button>
       </div>
     </div>
   );

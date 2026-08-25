@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { addMySubmissionIds } from '../../lib/mySubmissions';
 import { getDeviceId } from '../../lib/deviceId';
-import { FIXED_STYLE, nameFontSize } from '../shared';
+import { FIXED_STYLE, nameFontSize, Loader, ErrorState } from '../shared';
 import TributeInline from './TributeInline';
 
 const EMPTY_TRIBUTE = { mode: null, message: '', videoFile: null, videoUrl: null };
@@ -14,7 +14,7 @@ const EMPTY_TRIBUTE = { mode: null, message: '', videoFile: null, videoUrl: null
 // through a huge upload only to have the server reject it at the end.
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 
-export default function StudentSubmit({ active, studentName, professors, onSubmitted }) {
+export default function StudentSubmit({ active, studentName, professors, profsLoading, profsError, onRetryProfessors, onSubmitted }) {
   const [selectedProfIds, setSelectedProfIds] = useState([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [tributes, setTributes] = useState({});
@@ -87,31 +87,45 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
 
     setBusy(true);
     setAlertMsg(null);
+    // Submitted one professor at a time, so a failure partway through a
+    // multi-professor batch doesn't lose track of the ones that already
+    // went through — those still count as "my tributes" even if a later
+    // one in the same batch fails.
     const results = [];
-    try {
-      for (const profId of selectedProfIds) {
-        const t = getTribute(profId);
-        const fd = new FormData();
-        fd.append('profId', profId);
-        const deviceId = getDeviceId();
-        if (deviceId) fd.append('deviceId', deviceId);
-        if (t.mode === 'text') fd.append('message', t.message.trim());
-        if (t.mode === 'video') fd.append('file', t.videoFile);
+    let failedProf = null;
+    let failureMessage = null;
+    for (const profId of selectedProfIds) {
+      const t = getTribute(profId);
+      const fd = new FormData();
+      fd.append('profId', profId);
+      const deviceId = getDeviceId();
+      if (deviceId) fd.append('deviceId', deviceId);
+      if (t.mode === 'text') fd.append('message', t.message.trim());
+      if (t.mode === 'video') fd.append('file', t.videoFile);
+      try {
         const sub = await api('/api/submissions', { method: 'POST', body: fd });
         results.push(sub);
+      } catch (e) {
+        failedProf = professors.find((p) => p.id === profId);
+        failureMessage = e.message;
+        break;
       }
+    }
+
+    if (results.length > 0) addMySubmissionIds(results.map((s) => s.id));
+
+    if (failedProf) {
+      const successNote = results.length > 0 ? ` ${results.length} of ${selectedProfIds.length} went through — check My Tributes.` : '';
+      setAlertMsg({ type: 'error', text: `Couldn't send the tribute to ${failedProf.name}: ${failureMessage}.${successNote}` });
+    } else {
       setAlertMsg({ type: 'success', text: `Tribute submitted to ${results.length} professor${results.length === 1 ? '' : 's'}! Thank you!` });
-      addMySubmissionIds(results.map((s) => s.id));
       selectedProfIds.forEach((id) => { const t = getTribute(id); if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
       setTributes({});
       setSelectedProfIds([]);
       setPreviewIndex(0);
       onSubmitted();
-    } catch (e) {
-      setAlertMsg({ type: 'error', text: e.message });
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (
@@ -124,7 +138,9 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
           <div className="form-group">
             <label>Select Professor(s) * <span className="muted">({professors.length})</span></label>
             <div className="professor-grid">
-              {professors.length === 0 && <p className="muted">No professors yet for your institute.</p>}
+              {profsLoading && professors.length === 0 && <Loader text="Loading professors…" />}
+              {!profsLoading && profsError && professors.length === 0 && <ErrorState message={profsError} onRetry={onRetryProfessors} />}
+              {!profsLoading && !profsError && professors.length === 0 && <p className="muted">No professors yet for your institute.</p>}
               {professors.map((p) => (
                 <div key={p.id} className={`prof-card ${selectedProfIds.includes(p.id) ? 'selected' : ''}`} onClick={() => toggleProf(p.id)}>
                   <img src={p.photo} alt={p.name} />
@@ -140,6 +156,7 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
           <input ref={videoInputRef} type="file" accept="video/*" onChange={onVideoChange} style={{ display: 'none' }} />
 
           <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit Tribute'}</button>
+          {busy && <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>This can take a minute for a video tribute — please don&apos;t close this tab.</p>}
         </div>
 
         <div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useSession, useInstitutes } from '../lib/useSession';
-import { Gallery, WrongRoleNotice } from './shared';
+import { Gallery, WrongRoleNotice, ErrorState } from './shared';
 import AdminLogin from './admin/AdminLogin';
 import AdminHome from './admin/AdminHome';
 import AdminAddProf from './admin/AdminAddProf';
@@ -20,17 +20,24 @@ const TABS = [
 
 export default function AdminPortal() {
   const { session, setSession, logout } = useSession();
-  const institutes = useInstitutes();
+  const { institutes, error: institutesError, retry: retryInstitutes } = useInstitutes();
   const [professors, setProfessors] = useState([]);
+  const [profsLoading, setProfsLoading] = useState(true);
+  const [profsError, setProfsError] = useState(null);
   const [activeTab, setActiveTab] = useState('admin-home');
 
   useEffect(() => {
     if (!session || session === 'loading' || session === 'anon' || session.role !== 'admin') return;
     loadProfessors();
-  }, [session]);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadProfessors() {
-    api('/api/professors').then(setProfessors).catch(() => {});
+    setProfsLoading(true);
+    setProfsError(null);
+    api('/api/professors')
+      .then(setProfessors)
+      .catch((e) => setProfsError(e.message || 'Could not load professors.'))
+      .finally(() => setProfsLoading(false));
   }
 
   if (session === 'loading') return null;
@@ -57,11 +64,29 @@ export default function AdminPortal() {
         ))}
       </div>
 
+      {institutesError && (
+        <ErrorState message={`Couldn't load institutes — the Add Professor and Directory forms may not work: ${institutesError}`} onRetry={retryInstitutes} />
+      )}
+
       <AdminHome active={activeTab === 'admin-home'} />
       <AdminAddProf active={activeTab === 'admin-add'} institutes={institutes} onAdded={loadProfessors} />
-      <AdminDirectory active={activeTab === 'admin-directory'} professors={professors} institutes={institutes} onChanged={loadProfessors} />
+      <AdminDirectory
+        active={activeTab === 'admin-directory'}
+        professors={professors}
+        institutes={institutes}
+        onChanged={loadProfessors}
+        loading={profsLoading}
+        loadError={profsError}
+        onRetry={loadProfessors}
+      />
       <Gallery active={activeTab === 'gallery'} isAdmin={true} />
-      <AdminSend active={activeTab === 'admin-send'} professors={professors} />
+      <AdminSend
+        active={activeTab === 'admin-send'}
+        professors={professors}
+        profsLoading={profsLoading}
+        profsError={profsError}
+        onRetryProfessors={loadProfessors}
+      />
     </div>
   );
 }

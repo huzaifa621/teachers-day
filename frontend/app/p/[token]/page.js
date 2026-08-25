@@ -1,20 +1,30 @@
 import PublicTributesClient from './PublicTributesClient';
 import { serverApiUrl } from '../../../lib/api';
 
+// Distinguishes "token doesn't exist" (notFound — a normal 404) from
+// "couldn't even reach the backend" (unreachable — a real outage) so the
+// page can show an accurate message instead of either a misleading "not
+// found" or an uncaught exception crashing to Next's raw error page.
 async function getTributes(token) {
-  const res = await fetch(`${serverApiUrl()}/api/public/tributes/${token}`, { cache: 'no-store' });
-  if (!res.ok) return null;
-  return res.json().catch(() => null);
+  let res;
+  try {
+    res = await fetch(`${serverApiUrl()}/api/public/tributes/${token}`, { cache: 'no-store' });
+  } catch (_) {
+    return { unreachable: true };
+  }
+  if (!res.ok) return { notFound: true };
+  const data = await res.json().catch(() => null);
+  return data ? { data } : { notFound: true };
 }
 
 // Server-rendered metadata so LinkedIn's link scraper (which doesn't run
 // JS) sees a real preview card instead of the page's generic fallback title.
 export async function generateMetadata({ params }) {
   const { token } = await params;
-  const data = await getTributes(token);
-  if (!data) return { title: 'Link not found' };
+  const result = await getTributes(token);
+  if (!result.data) return { title: result.unreachable ? "Teachers' Day Postcard Portal" : 'Link not found' };
 
-  const { professor } = data;
+  const { professor } = result.data;
   const title = `Happy Teachers' Day, ${professor.name}!`;
   const description = `${professor.designation} · ${professor.institute} — see the Teachers' Day tributes shared with ${professor.name}.`;
 
@@ -31,12 +41,21 @@ export async function generateMetadata({ params }) {
 
 export default async function PublicTributesPage({ params }) {
   const { token } = await params;
-  const data = await getTributes(token);
+  const result = await getTributes(token);
+
+  if (result.unreachable) {
+    return (
+      <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
+        <h2>Couldn&apos;t load this page</h2>
+        <p className="muted">Something went wrong on our end — please try refreshing in a moment.</p>
+      </div>
+    );
+  }
 
   return (
     <PublicTributesClient
-      professor={data ? data.professor : null}
-      submissions={data ? data.submissions : []}
+      professor={result.data ? result.data.professor : null}
+      submissions={result.data ? result.data.submissions : []}
     />
   );
 }
