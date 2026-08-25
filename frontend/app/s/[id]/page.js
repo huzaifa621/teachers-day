@@ -1,8 +1,8 @@
 import { PostcardCard } from '../../../components/shared';
-import { API_URL } from '../../../lib/api';
+import { serverApiUrl } from '../../../lib/api';
 
 async function getSubmission(id) {
-  const res = await fetch(`${API_URL}/api/public/submission/${id}`, { cache: 'no-store' });
+  const res = await fetch(`${serverApiUrl()}/api/public/submission/${id}`, { cache: 'no-store' });
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
   return data ? data.submission : null;

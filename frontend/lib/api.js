@@ -3,6 +3,17 @@
 // instead of falling back to the localhost default.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4173';
 
+// For server-side fetches only (Server Components, generateMetadata) —
+// unlike a browser, Node's fetch() can't resolve a relative URL against
+// "the current page", so an empty API_URL (same-origin-via-Nginx in prod)
+// doesn't work there. INTERNAL_API_URL is a plain (non-NEXT_PUBLIC) runtime
+// env var pointing at the backend container directly over the Docker
+// network (see docker-compose.yml), read fresh on each server request
+// instead of being baked into the client bundle at build time.
+function serverApiUrl() {
+  return process.env.INTERNAL_API_URL || API_URL;
+}
+
 async function api(path, opts = {}) {
   const res = await fetch(`${API_URL}${path}`, { credentials: 'include', ...opts });
   let data = null;
@@ -41,4 +52,4 @@ async function downloadFile(path, triggerBtnSetter) {
   }
 }
 
-export { API_URL, api, downloadFile };
+export { API_URL, api, downloadFile, serverApiUrl };

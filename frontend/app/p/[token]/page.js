@@ -1,8 +1,8 @@
 import PublicTributesClient from './PublicTributesClient';
-import { API_URL } from '../../../lib/api';
+import { serverApiUrl } from '../../../lib/api';
 
 async function getTributes(token) {
-  const res = await fetch(`${API_URL}/api/public/tributes/${token}`, { cache: 'no-store' });
+  const res = await fetch(`${serverApiUrl()}/api/public/tributes/${token}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json().catch(() => null);
 }
