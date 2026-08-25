@@ -1,75 +1,42 @@
-'use client';
-
-import { use, useEffect, useState } from 'react';
-import { PostcardCard, typeLabel } from '../../../components/shared';
+import PublicTributesClient from './PublicTributesClient';
 import { API_URL } from '../../../lib/api';
 
-export default function PublicTributesPage({ params }) {
-  const { token } = use(params);
-  const [state, setState] = useState({ loading: true, error: null, professor: null, submissions: [] });
-  const [index, setIndex] = useState(0);
+async function getTributes(token) {
+  const res = await fetch(`${API_URL}/api/public/tributes/${token}`, { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json().catch(() => null);
+}
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/public/tributes/${token}`)
-      .then(async (res) => {
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error((data && data.error) || 'Could not load this link');
-        setState({ loading: false, error: null, professor: data.professor, submissions: data.submissions });
-      })
-      .catch((err) => setState({ loading: false, error: err.message, professor: null, submissions: [] }));
-  }, [token]);
+// Server-rendered metadata so LinkedIn's link scraper (which doesn't run
+// JS) sees a real preview card instead of the page's generic fallback title.
+export async function generateMetadata({ params }) {
+  const { token } = await params;
+  const data = await getTributes(token);
+  if (!data) return { title: 'Link not found' };
 
-  if (state.loading) {
-    return (
-      <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <p className="muted">Loading your tributes&hellip;</p>
-      </div>
-    );
-  }
+  const { professor } = data;
+  const title = `Happy Teachers' Day, ${professor.name}!`;
+  const description = `${professor.designation} · ${professor.institute} — see the Teachers' Day tributes shared with ${professor.name}.`;
 
-  if (state.error) {
-    return (
-      <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <h2>Link not found</h2>
-        <p className="muted">{state.error}</p>
-      </div>
-    );
-  }
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: professor.photo ? [professor.photo] : []
+    }
+  };
+}
 
-  const { professor, submissions } = state;
-  const s = submissions[index];
+export default async function PublicTributesPage({ params }) {
+  const { token } = await params;
+  const data = await getTributes(token);
 
   return (
-    <div className="container" style={{ maxWidth: 820, paddingTop: 40, paddingBottom: 60 }}>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <img src="/masai_logo.png" alt="masai" style={{ height: 30, marginBottom: 14 }} />
-        <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {professor.name}!</h2>
-        <p className="muted">
-          {professor.designation} &middot; {professor.institute}
-        </p>
-        {submissions.length > 0 && (
-          <p className="muted" style={{ marginTop: 6 }}>
-            {typeLabel(s.type)} {index + 1} of {submissions.length}
-          </p>
-        )}
-      </div>
-
-      {submissions.length === 0 && (
-        <p className="muted" style={{ textAlign: 'center' }}>No tributes have been shared yet — check back soon.</p>
-      )}
-
-      {s && (
-        <div className="slider-body">
-          <PostcardCard submission={s} />
-        </div>
-      )}
-
-      {submissions.length > 1 && (
-        <div className="slider-controls-centered">
-          <button className="btn-secondary btn-small" onClick={() => setIndex((i) => (i - 1 + submissions.length) % submissions.length)}>&larr; Prev</button>
-          <button className="btn-secondary btn-small" onClick={() => setIndex((i) => (i + 1) % submissions.length)}>Next &rarr;</button>
-        </div>
-      )}
-    </div>
+    <PublicTributesClient
+      professor={data ? data.professor : null}
+      submissions={data ? data.submissions : []}
+    />
   );
 }

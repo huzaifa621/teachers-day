@@ -18,8 +18,10 @@ const upload = multer({
   }
 });
 
-function toPublic(s) {
-  return {
+// includeInternal (admin-only) adds the silent submitter signals — never
+// sent to students, even for their own submissions.
+function toPublic(s, includeInternal) {
+  const out = {
     id: String(s._id),
     studentName: s.studentName,
     studentInstitute: s.studentInstitute,
@@ -37,10 +39,16 @@ function toPublic(s) {
     createdAt: s.createdAt,
     fileUrl: storage.publicUrl(s.filePath)
   };
+  if (includeInternal) {
+    out.deviceId = s.deviceId || null;
+    out.ip = s.ip || null;
+  }
+  return out;
 }
 
 router.get('/', requireAuth, async (req, res) => {
   const all = await submissions.all();
+  const isAdmin = req.session.role === 'admin';
 
   // A student's own "My Tributes" gallery passes back the ids it remembered
   // (see lib/mySubmissions.js — there's no real student account to scope by,
@@ -51,21 +59,22 @@ router.get('/', requireAuth, async (req, res) => {
   if (req.query.ids !== undefined) {
     const idSet = new Set(String(req.query.ids).split(',').filter(Boolean));
     const mine = all.filter((s) => idSet.has(String(s._id)));
-    return res.json(mine.map(toPublic));
+    return res.json(mine.map((s) => toPublic(s, isAdmin)));
   }
 
   // Otherwise, moderation status is admin-only — everyone else only sees approved tributes.
-  const visible = req.session.role === 'admin' ? all : all.filter((s) => (s.status || 'pending') === 'approved');
-  res.json(visible.map(toPublic));
+  const visible = isAdmin ? all : all.filter((s) => (s.status || 'pending') === 'approved');
+  res.json(visible.map((s) => toPublic(s, isAdmin)));
 });
 
 router.get('/:id', requireAuth, async (req, res) => {
   const s = await submissions.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'Not found' });
-  if (req.session.role !== 'admin' && (s.status || 'pending') !== 'approved') {
+  const isAdmin = req.session.role === 'admin';
+  if (!isAdmin && (s.status || 'pending') !== 'approved') {
     return res.status(404).json({ error: 'Not found' });
   }
-  res.json(toPublic(s));
+  res.json(toPublic(s, isAdmin));
 });
 
 router.post('/', requireStudent, upload.single('file'), async (req, res) => {
@@ -111,10 +120,12 @@ router.post('/', requireStudent, upload.single('file'), async (req, res) => {
       fileName: req.file ? req.file.originalname : null,
       fontFamily: FONT_FAMILY,
       textColor: TEXT_COLOR,
-      fontSize: FONT_SIZE
+      fontSize: FONT_SIZE,
+      deviceId: (req.body.deviceId || '').trim().slice(0, 100) || null,
+      ip: req.ip || null
     });
 
-    res.json(toPublic(sub));
+    res.json(toPublic(sub, false));
   } catch (err) {
     console.error('submission create failed', err);
     res.status(500).json({ error: 'Could not save submission' });
@@ -128,7 +139,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
   }
   const s = await submissions.setStatus(req.params.id, status);
   if (!s) return res.status(404).json({ error: 'Not found' });
-  res.json(toPublic(s));
+  res.json(toPublic(s, true));
 });
 
 module.exports = router;

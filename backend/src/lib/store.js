@@ -85,7 +85,7 @@ const submissions = {
     const db = await getDb();
     return db.collection('submissions').find({ profId: String(profId) }).sort({ createdAt: 1 }).toArray();
   },
-  async create({ studentName, studentInstitute, prof, type, message, filePath, fileName, fontFamily, textColor, fontSize }) {
+  async create({ studentName, studentInstitute, prof, type, message, filePath, fileName, fontFamily, textColor, fontSize, deviceId, ip }) {
     const db = await getDb();
     const doc = {
       studentName,
@@ -102,6 +102,12 @@ const submissions = {
       textColor: textColor || '#2c1810',
       fontSize: fontSize || '26px',
       status: 'pending',
+      // Not shown to students — admin-only signal for spotting who submitted
+      // what. deviceId is a browser-persisted random id (see
+      // frontend/lib/deviceId.js); ip is captured server-side and changes
+      // with the student's network, so it's a weaker, supporting signal.
+      deviceId: deviceId || null,
+      ip: ip || null,
       createdAt: new Date().toISOString()
     };
     const { insertedId } = await db.collection('submissions').insertOne(doc);

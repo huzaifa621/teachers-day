@@ -108,7 +108,7 @@ body::before {
 .radio-row label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; font-size: 14px; }
 
 .professor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin-top: 10px; max-height: 340px; overflow-y: auto; border: 1px solid var(--border); padding: 12px; border-radius: 6px; }
-.prof-card { border: 2px solid var(--border); padding: 8px; text-align: center; cursor: pointer; border-radius: 6px; transition: 0.2s; background: white; }
+.prof-card { border: 2px solid var(--border); padding: 8px; text-align: center; cursor: pointer; border-radius: 6px; transition: 0.2s; background: white; display: flex; flex-direction: column; }
 .prof-card:hover { border-color: var(--brown); background: #f5efe0; }
 .prof-card.selected { border-color: var(--brown); background: #d4c5b9; }
 .prof-card img { width: 100%; height: 80px; object-fit: cover; border-radius: 3px; margin-bottom: 6px; }

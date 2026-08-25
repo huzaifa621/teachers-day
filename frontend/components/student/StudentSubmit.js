@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { addMySubmissionIds } from '../../lib/mySubmissions';
+import { getDeviceId } from '../../lib/deviceId';
 import { FIXED_STYLE, nameFontSize } from '../shared';
 import TributeInline from './TributeInline';
 
@@ -92,6 +93,8 @@ export default function StudentSubmit({ active, studentName, professors, onSubmi
         const t = getTribute(profId);
         const fd = new FormData();
         fd.append('profId', profId);
+        const deviceId = getDeviceId();
+        if (deviceId) fd.append('deviceId', deviceId);
         if (t.mode === 'text') fd.append('message', t.message.trim());
         if (t.mode === 'video') fd.append('file', t.videoFile);
         const sub = await api('/api/submissions', { method: 'POST', body: fd });

@@ -38,4 +38,13 @@ router.get('/tributes/:token', async (req, res) => {
   });
 });
 
+// Unauthenticated by design — this is the per-tribute link a student can share.
+// Only resolves while the submission is approved, so a link stops working the
+// moment admin rejects (or un-approves) it, even if it worked before.
+router.get('/submission/:id', async (req, res) => {
+  const s = await submissions.get(req.params.id);
+  if (!s || (s.status || 'pending') !== 'approved') return res.status(404).json({ error: 'Not found' });
+  res.json({ submission: toPublicSubmission(s) });
+});
+
 module.exports = router;

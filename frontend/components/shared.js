@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../lib/api';
 import { getMySubmissionIds } from '../lib/mySubmissions';
+import { copyToClipboard } from '../lib/clipboard';
+import { openLinkedInShare } from '../lib/share';
 
 export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
 
@@ -84,6 +86,25 @@ const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Reje
 
 export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange }) {
   const [busy, setBusy] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  function shareLink() {
+    return `${window.location.origin}/s/${s.id}`;
+  }
+
+  async function handleShare() {
+    try {
+      await copyToClipboard(shareLink());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_) {
+      alert('Could not copy the link');
+    }
+  }
+
+  function handleLinkedInShare() {
+    openLinkedInShare(shareLink());
+  }
 
   let thumb;
   if (s.type === 'text') thumb = <div style={{ fontSize: 36 }}>&#128221;</div>;
@@ -104,6 +125,8 @@ export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange 
           <div><strong>To:</strong> {s.profName}</div>
           <div><strong>From:</strong> {s.studentName}</div>
           <div><strong>Date:</strong> {new Date(s.createdAt).toLocaleString()}</div>
+          {isAdmin && <div><strong>Device:</strong> {s.deviceId || '—'}</div>}
+          {isAdmin && <div><strong>IP:</strong> {s.ip || '—'}</div>}
         </div>
         <div>
           <button className="gallery-btn" onClick={() => onView(s)}>View</button>
@@ -112,6 +135,12 @@ export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange 
             disabled={busy === 'download'}
             onClick={() => { setBusy('download'); downloadFile(`/api/submissions/${s.id}/download`).finally(() => setBusy(null)); }}
           >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
+          {!isAdmin && (
+            <>
+              <button className="gallery-btn alt" onClick={handleShare}>{copied ? 'Copied!' : 'Share'}</button>
+              <button className="gallery-btn alt" onClick={handleLinkedInShare}>LinkedIn</button>
+            </>
+          )}
         </div>
         {isAdmin && onStatusChange && (
           <div style={{ marginTop: 8 }}>
