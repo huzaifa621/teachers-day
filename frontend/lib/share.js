@@ -7,3 +7,15 @@ export function openLinkedInShare(url) {
   const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
   window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=600');
 }
+
+// LinkedIn's share dialog never accepts pre-filled caption text (see above) —
+// so the closest thing to "autofill" is copying this caption to the
+// clipboard right before the dialog opens, so the user just pastes it in.
+// PLACEHOLDER copy — swap in the real templates once provided.
+export function studentLinkedInCaption({ studentName, profName, link }) {
+  return `I just sent a Teachers' Day tribute to ${profName}! 🎉\n\nCheck it out here: ${link}\n\n#TeachersDay #Masai`;
+}
+
+export function professorLinkedInCaption({ profName, link }) {
+  return `Grateful for the Teachers' Day tributes my students shared with me! 🎉\n\nSee them here: ${link}\n\n#TeachersDay #Masai`;
+}

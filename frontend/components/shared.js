@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../lib/api';
 import { getMySubmissionIds } from '../lib/mySubmissions';
 import { copyToClipboard } from '../lib/clipboard';
-import { openLinkedInShare } from '../lib/share';
+import { openLinkedInShare, studentLinkedInCaption } from '../lib/share';
 
 export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
 
@@ -84,26 +84,27 @@ export function groupByInstitute(list, instituteKey) {
 
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
-export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange }) {
+export function SubmissionCard({ s, onView, isAdmin, onStatusChange }) {
   const [busy, setBusy] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [justShared, setJustShared] = useState(false);
 
   function shareLink() {
     return `${window.location.origin}/s/${s.id}`;
   }
 
-  async function handleShare() {
-    try {
-      await copyToClipboard(shareLink());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (_) {
-      alert('Could not copy the link');
-    }
-  }
-
+  // LinkedIn's share dialog can't be handed pre-filled caption text (see
+  // lib/share.js), so this is the closest available substitute: copy the
+  // caption to the clipboard and download the postcard silently, right as
+  // the LinkedIn compose popup opens — the student just pastes the caption.
+  // window.open must fire first/synchronously or some browsers treat it as
+  // a blocked popup once it's no longer directly inside the click handler.
   function handleLinkedInShare() {
-    openLinkedInShare(shareLink());
+    const link = shareLink();
+    openLinkedInShare(link);
+    copyToClipboard(studentLinkedInCaption({ studentName: s.studentName, profName: s.profName, link })).catch(() => {});
+    downloadFile(`/api/submissions/${s.id}/download`).catch(() => {});
+    setJustShared(true);
+    setTimeout(() => setJustShared(false), 2500);
   }
 
   let thumb;
@@ -117,7 +118,7 @@ export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange 
       <div className="gallery-info">
         <div className="gallery-header">
           <span className="gallery-type">{typeLabel(s.type)}</span>
-          {(isAdmin || showStatus) && <span className={`gallery-status status-${s.status}`}>{STATUS_LABEL[s.status] || 'Pending'}</span>}
+          {isAdmin && <span className={`gallery-status status-${s.status}`}>{STATUS_LABEL[s.status] || 'Pending'}</span>}
         </div>
         {s.message && <div className="gallery-text">&ldquo;{s.message.slice(0, 90)}&rdquo;</div>}
         {!s.message && s.fileName && <div className="gallery-text">{s.fileName}</div>}
@@ -130,16 +131,15 @@ export function SubmissionCard({ s, onView, isAdmin, showStatus, onStatusChange 
         </div>
         <div>
           <button className="gallery-btn" onClick={() => onView(s)}>View</button>
-          <button
-            className="gallery-btn alt"
-            disabled={busy === 'download'}
-            onClick={() => { setBusy('download'); downloadFile(`/api/submissions/${s.id}/download`).finally(() => setBusy(null)); }}
-          >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
+          {isAdmin && (
+            <button
+              className="gallery-btn alt"
+              disabled={busy === 'download'}
+              onClick={() => { setBusy('download'); downloadFile(`/api/submissions/${s.id}/download`).finally(() => setBusy(null)); }}
+            >{busy === 'download' ? 'Preparing...' : 'Download'}</button>
+          )}
           {!isAdmin && (
-            <>
-              <button className="gallery-btn alt" onClick={handleShare}>{copied ? 'Copied!' : 'Share'}</button>
-              <button className="gallery-btn alt" onClick={handleLinkedInShare}>LinkedIn</button>
-            </>
+            <button className="gallery-btn alt" onClick={handleLinkedInShare}>{justShared ? 'Copied caption!' : 'Share on LinkedIn'}</button>
           )}
         </div>
         {isAdmin && onStatusChange && (
@@ -219,7 +219,7 @@ export function Gallery({ active, isAdmin, mineOnly }) {
             <h3>{inst}</h3>
             <div className="gallery-grid">
               {items.map((s) => (
-                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} showStatus={mineOnly} onStatusChange={isAdmin ? onStatusChange : null} />
+                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} />
               ))}
             </div>
           </div>

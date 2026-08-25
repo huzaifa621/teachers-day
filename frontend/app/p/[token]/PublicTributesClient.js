@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { PostcardCard, typeLabel } from '../../../components/shared';
 import { copyToClipboard } from '../../../lib/clipboard';
-import { openLinkedInShare } from '../../../lib/share';
+import { openLinkedInShare, professorLinkedInCaption } from '../../../lib/share';
 
 export default function PublicTributesClient({ professor, submissions }) {
   const [index, setIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [justShared, setJustShared] = useState(false);
 
   if (!professor) {
     return (
@@ -30,15 +31,22 @@ export default function PublicTributesClient({ professor, submissions }) {
     }
   }
 
+  // Same LinkedIn caveat as the student flow (see lib/share.js): the compose
+  // box can't be pre-filled, so this copies the caption to the clipboard
+  // right as the popup opens — no download here, unlike the student flow.
   function handleLinkedInShare() {
-    openLinkedInShare(window.location.href);
+    const link = window.location.href;
+    openLinkedInShare(link);
+    copyToClipboard(professorLinkedInCaption({ profName: professor.name, link })).catch(() => {});
+    setJustShared(true);
+    setTimeout(() => setJustShared(false), 2500);
   }
 
   return (
     <div className="container" style={{ maxWidth: 820, paddingTop: 40, paddingBottom: 60 }}>
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 10, display: 'flex', gap: 8 }}>
         <button className="btn-secondary btn-small" onClick={handleShare}>{copied ? 'Copied!' : 'Share'}</button>
-        <button className="btn-secondary btn-small" onClick={handleLinkedInShare}>LinkedIn</button>
+        <button className="btn-secondary btn-small" onClick={handleLinkedInShare}>{justShared ? 'Copied caption!' : 'Share on LinkedIn'}</button>
       </div>
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
