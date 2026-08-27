@@ -9,9 +9,11 @@ export function openLinkedInShare(url) {
 }
 
 // LinkedIn's share dialog never accepts pre-filled caption text (see above) —
-// so the closest thing to "autofill" is showing this caption in a modal for
-// the student to copy themselves. PLACEHOLDER body copy — swap in the real
-// template once provided; hashtags are fixed per requirements.
-export function studentLinkedInCaption({ studentName, profName, link }) {
-  return `I just sent a Teachers' Day tribute to ${profName}! 🎉\n\nCheck it out here: ${link}\n\n#masaiteachersday #gratitude`;
-}
+// so the closest thing to "autofill" is showing a caption in a modal for the
+// student to copy themselves. Three approved variants; the modal shows them
+// as tabs so the student picks the voice that fits them.
+export const STUDENT_LINKEDIN_CAPTIONS = [
+  'Every student has that one teacher who accidentally became a core part of their story. Here’s mine. 💌 #MasaiTeachersDay',
+  'Here’s to the teacher who gave us more than notes, assignments, and deadlines — they gave us a little more belief in ourselves. 💌 #MasaiTeachersDay',
+  'Teachers: professionally responsible for our learning, unofficially responsible for so much more. Here’s to my favourite one. 💌 #MasaiTeachersDay'
+];

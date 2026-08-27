@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../lib/api';
 import { getMySubmissionIds } from '../lib/mySubmissions';
 import { copyToClipboard } from '../lib/clipboard';
-import { openLinkedInShare, studentLinkedInCaption } from '../lib/share';
+import { openLinkedInShare, STUDENT_LINKEDIN_CAPTIONS } from '../lib/share';
 
 export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
 
@@ -186,11 +186,12 @@ export function MediaModal({ submission, onClose }) {
 export function LinkedInShareModal({ submission, onClose }) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+  const [captionIndex, setCaptionIndex] = useState(0);
 
   if (!submission) return null;
 
   const link = `${window.location.origin}/s/${submission.id}`;
-  const caption = studentLinkedInCaption({ studentName: submission.studentName, profName: submission.profName, link });
+  const caption = STUDENT_LINKEDIN_CAPTIONS[captionIndex];
 
   function showToast(text) {
     setToast(text);
@@ -222,7 +223,21 @@ export function LinkedInShareModal({ submission, onClose }) {
       <div className="modal-content linkedin-modal">
         <button className="modal-close" onClick={onClose}>&times;</button>
         <h3>Share on LinkedIn</h3>
-        <p className="muted">Download your card and copy the post below, then share it on LinkedIn.</p>
+        <p className="muted">Pick a caption, download your card and copy the post, then share it on LinkedIn.</p>
+        <div className="caption-tabs" role="tablist" aria-label="Post options">
+          {STUDENT_LINKEDIN_CAPTIONS.map((_, i) => (
+            <button
+              key={i}
+              role="tab"
+              type="button"
+              aria-selected={captionIndex === i}
+              className={`caption-tab ${captionIndex === i ? 'active' : ''}`}
+              onClick={() => setCaptionIndex(i)}
+            >
+              Post {i + 1}
+            </button>
+          ))}
+        </div>
         <div className="caption-box">{caption}</div>
         <div className="linkedin-modal-actions">
           <button className="gallery-btn alt" disabled={busy} onClick={handleDownload}>{busy ? 'Preparing...' : 'Download'}</button>
