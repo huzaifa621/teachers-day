@@ -14,7 +14,23 @@ const INSTITUTES = [
   'IIMRC',
   'iHUB DivyaSampark, IIT Roorkee',
   'CCE IIT Mandi',
-  'IIT Jodhpur'
+  'IIT Jodhpur',
+  'IIM Calcutta',
+  'IIT Indore',
+  'ISM Dhanbad',
+  'IIT Palakkad',
+  'IIM Kozhikode',
+  'IIT Jammu',
+  'IIM Visakhapatnam',
+  'IIT Kharagpur',
+  'IIT Dharwad',
+  'IIT Kanpur',
+  'IIT Madras',
+  'IIM Sambalpur',
+  'IIM Jammu',
+  'IIM Ranchi',
+  'IIM Rohtak',
+  'IIT Guwahati'
 ];
 
 module.exports = { INSTITUTES };
