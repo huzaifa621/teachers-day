@@ -27,6 +27,10 @@ RUN npm ci --omit=dev
 
 COPY src ./src
 COPY assets ./assets
+# One-off maintenance scripts (e.g. scripts/migrate-faculty.js), run with
+# `docker compose run --rm backend node scripts/<name>.js`. Not part of the
+# server, but they need the image's node_modules and env to talk to Mongo/S3.
+COPY scripts ./scripts
 
 EXPOSE 4173
 CMD ["node", "src/index.js"]

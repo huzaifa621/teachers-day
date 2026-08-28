@@ -229,9 +229,15 @@ Note: logging into the admin panel requires HTTPS to work correctly (secure cook
   starting the new containers — the app creates a unique index on `email` at boot
   and will crash if any record has a blank or duplicated address.
   ```bash
+  git pull
+  docker compose build backend        # the script ships inside the image
   docker compose run --rm backend node scripts/migrate-faculty.js          # report only
   docker compose run --rm backend node scripts/migrate-faculty.js --apply  # migrate
+  docker compose up -d --build        # only now start the new containers
   ```
+  The `build` step is not optional: `docker compose run` uses the existing image,
+  so without it you get `Cannot find module '/app/scripts/migrate-faculty.js'`.
+
   The report run changes nothing. If it lists blank or duplicated emails, fix those
   first — only a human can decide the right address. Re-running after a successful
   migration is a no-op.
