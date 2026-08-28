@@ -17,6 +17,15 @@ const SCALE = 1;
 const FPS = 10;
 const MAX_DURATION_SEC = 10;
 
+// ffmpeg's pad filter cannot produce an odd *width* from yuv420p input — the
+// chroma planes are horizontally subsampled, so an odd width has no valid
+// chroma size and the graph fails with "Error reinitializing filters! Failed
+// to inject frame into filter network: Invalid argument". The postcard's
+// video hole is 685px wide, which tripped exactly that on every video
+// tribute. Rounding the box to even dimensions costs at most one pixel of
+// layout and is invisible in the output.
+const even = (n) => Math.round(n / 2) * 2;
+
 // Renders the postcard frame with a transparent hole where the video goes,
 // then has ffmpeg crop/cover a short loop of the source video into that hole
 // and overlay the frame on top, producing a single palette-optimized GIF.
@@ -45,20 +54,22 @@ async function compositeVideoGif({
   fs.writeFileSync(frameTmpPath, framePng);
 
   const rects = getRects();
-  const canvasW = rects.canvas.w * SCALE;
-  const canvasH = rects.canvas.h * SCALE;
-  const holeX = Math.round(rects.leftHole.x * SCALE);
-  const holeY = Math.round(rects.leftHole.y * SCALE);
-  const holeW = Math.round(rects.leftHole.w * SCALE);
-  const holeH = Math.round(rects.leftHole.h * SCALE);
+  const canvasW = even(rects.canvas.w * SCALE);
+  const canvasH = even(rects.canvas.h * SCALE);
+  const holeX = even(rects.leftHole.x * SCALE);
+  const holeY = even(rects.leftHole.y * SCALE);
+  const holeW = even(rects.leftHole.w * SCALE);
+  const holeH = even(rects.leftHole.h * SCALE);
 
   // Fit the (trimmed) video within the hole preserving its aspect ratio (no
   // crop/zoom), letterboxed with the postcard's parchment tone, place that
   // box into the full canvas at the hole's position, then palette-optimize
   // for GIF (generate a palette from the composited frames, then re-encode
   // against it — much better quality than ffmpeg's default GIF encoder).
+  // force_divisible_by=2 keeps the *scaled* video even too, so the centring
+  // offsets pad computes never land on a half pixel.
   const filter = [
-    `[0:v]trim=duration=${MAX_DURATION_SEC},setpts=PTS-STARTPTS,scale=${holeW}:${holeH}:force_original_aspect_ratio=decrease,pad=${holeW}:${holeH}:(ow-iw)/2:(oh-ih)/2:color=0xf2e3b6[vidfit]`,
+    `[0:v]trim=duration=${MAX_DURATION_SEC},setpts=PTS-STARTPTS,scale=${holeW}:${holeH}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${holeW}:${holeH}:(ow-iw)/2:(oh-ih)/2:color=0xf2e3b6[vidfit]`,
     `[vidfit]pad=${canvasW}:${canvasH}:${holeX}:${holeY}:color=black[vidpad]`,
     `[vidpad][1:v]overlay=0:0:shortest=1[outv]`,
     `[outv]fps=${FPS}[gifv]`,
