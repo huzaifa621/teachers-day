@@ -42,9 +42,6 @@ export default function PublicTributesClient({ faculty, submissions }) {
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img src="/masai_logo.png" alt="masai" style={{ height: 30, marginBottom: 14 }} />
         <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {faculty.name}!</h2>
-        {(faculty.institutes || []).length > 0 && (
-          <p className="muted">{faculty.institutes.join(' · ')}</p>
-        )}
         {submissions.length > 0 && (
           <p className="muted" style={{ marginTop: 6 }}>
             {typeLabel(s.type)} {index + 1} of {submissions.length}

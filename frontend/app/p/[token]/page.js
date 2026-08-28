@@ -26,10 +26,7 @@ export async function generateMetadata({ params }) {
 
   const { faculty } = result.data;
   const title = `Happy Teachers' Day, ${faculty.name}!`;
-  const institutes = (faculty.institutes || []).join(' · ');
-  const description = institutes
-    ? `${institutes} — see the Teachers' Day tributes shared with ${faculty.name}.`
-    : `See the Teachers' Day tributes shared with ${faculty.name}.`;
+  const description = `See the Teachers' Day tributes shared with ${faculty.name}.`;
 
   return {
     title,
