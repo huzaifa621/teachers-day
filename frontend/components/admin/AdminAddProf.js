@@ -2,8 +2,9 @@
 
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { uploadDirect } from '../../lib/upload';
 
-// Keep in sync with the multer limit in backend/src/routes/professors.js —
+// Keep in sync with the photo limit in backend/src/routes/uploads.js —
 // an early, friendly rejection instead of waiting on a doomed upload.
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
@@ -38,16 +39,22 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
     if (!institute || !name.trim() || !designation.trim() || !photo) {
       return setAlertMsg({ type: 'error', text: 'Fill all required fields' });
     }
-    const fd = new FormData();
-    fd.append('institute', institute);
-    fd.append('name', name.trim());
-    fd.append('designation', designation.trim());
-    fd.append('email', email.trim());
-    fd.append('photo', photo);
-
     setBusy(true);
     try {
-      const prof = await api('/api/professors', { method: 'POST', body: fd });
+      // Photo goes browser -> S3 directly; the API only receives its key.
+      const { key, token } = await uploadDirect('photo', photo);
+      const prof = await api('/api/professors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          institute,
+          name: name.trim(),
+          designation: designation.trim(),
+          email: email.trim(),
+          photoKey: key,
+          photoToken: token
+        })
+      });
       setInstitute(''); setName(''); setDesignation(''); setEmail('');
       setPhoto(null); setPreview(null);
       if (photoInputRef.current) photoInputRef.current.value = '';

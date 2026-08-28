@@ -2,8 +2,9 @@
 
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { uploadDirect } from '../../lib/upload';
 
-// Keep in sync with the multer limit in backend/src/routes/professors.js —
+// Keep in sync with the photo limit in backend/src/routes/uploads.js —
 // an early, friendly rejection instead of waiting on a doomed upload.
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
@@ -36,16 +37,25 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
     if (!institute || !name.trim() || !designation.trim()) {
       return setAlertMsg({ type: 'error', text: 'Fill all required fields' });
     }
-    const fd = new FormData();
-    fd.append('institute', institute);
-    fd.append('name', name.trim());
-    fd.append('designation', designation.trim());
-    fd.append('email', email.trim());
-    if (photo) fd.append('photo', photo);
-
     setBusy(true);
     try {
-      const updated = await api(`/api/professors/${prof.id}`, { method: 'PATCH', body: fd });
+      const body = {
+        institute,
+        name: name.trim(),
+        designation: designation.trim(),
+        email: email.trim()
+      };
+      // Only when a new photo was picked — otherwise the existing one stays.
+      if (photo) {
+        const { key, token } = await uploadDirect('photo', photo);
+        body.photoKey = key;
+        body.photoToken = token;
+      }
+      const updated = await api(`/api/professors/${prof.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
       onSaved(updated);
     } catch (e) {
       setAlertMsg({ type: 'error', text: e.message });

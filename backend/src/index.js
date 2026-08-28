@@ -7,6 +7,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const professorRoutes = require('./routes/professors');
 const submissionRoutes = require('./routes/submissions');
+const uploadRoutes = require('./routes/uploads');
 const downloadRoutes = require('./routes/downloads');
 const statsRoutes = require('./routes/stats');
 const institutesRoutes = require('./routes/institutes');
@@ -55,12 +56,13 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/professors', professorRoutes);
 app.use('/api/submissions', submissionRoutes);
+app.use('/api/uploads', uploadRoutes);
 app.use('/api', downloadRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/institutes', institutesRoutes);
 app.use('/api/public', publicRoutes);
 
-// Multer / upload errors land here instead of crashing the process.
+// Upload / validation errors land here instead of crashing the process.
 app.use((err, req, res, next) => {
   if (err) {
     console.error(err.message);

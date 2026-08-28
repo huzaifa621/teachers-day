@@ -1,22 +1,13 @@
 const express = require('express');
-const multer = require('multer');
 const { professors, submissions } = require('../lib/store');
 const { requireAuth, requireStudent, requireAdmin } = require('../lib/middleware');
 const storage = require('../lib/storage');
+const { resolveUpload } = require('./uploads');
 const { FONT_FAMILY, TEXT_COLOR, FONT_SIZE } = require('../lib/postcard-style');
 
 const STATUSES = ['pending', 'approved', 'rejected'];
 
 const router = express.Router();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (/^video\//.test(file.mimetype)) return cb(null, true);
-    cb(new Error('Only video files are accepted'));
-  }
-});
 
 // includeInternal (admin-only) adds the silent submitter signals — never
 // sent to students, even for their own submissions.
@@ -77,10 +68,15 @@ router.get('/:id', requireAuth, async (req, res) => {
   res.json(toPublic(s, isAdmin));
 });
 
-router.post('/', requireStudent, upload.single('file'), async (req, res) => {
+// Video tributes no longer arrive as multipart here — the browser PUTs the
+// file straight to S3 with a presigned URL (see routes/uploads.js) and this
+// request carries only the resulting {fileKey, fileToken}. So the request body
+// is small JSON whatever the video's size.
+router.post('/', requireStudent, async (req, res) => {
   const profId = req.body.profId;
   const message = (req.body.message || '').trim();
-  const hasVideo = !!req.file;
+  const fileKey = (req.body.fileKey || '').trim();
+  const hasVideo = !!fileKey;
 
   if (!message && !hasVideo) {
     return res.status(400).json({ error: 'Write a message or upload a video' });
@@ -95,19 +91,13 @@ router.post('/', requireStudent, upload.single('file'), async (req, res) => {
   if (!prof) {
     return res.status(400).json({ error: 'Selected professor no longer exists' });
   }
-  if (hasVideo && !/^video\//.test(req.file.mimetype)) {
-    return res.status(400).json({ error: 'Uploaded file is not a video' });
-  }
 
   const type = hasVideo ? 'video' : 'text';
 
   try {
     let filePath = null;
     if (hasVideo) {
-      filePath = await storage.uploadBuffer('videos', req.file.buffer, {
-        originalName: req.file.originalname,
-        contentType: req.file.mimetype
-      });
+      filePath = await resolveUpload('video', { key: fileKey, token: req.body.fileToken });
     }
 
     const sub = await submissions.create({
@@ -117,7 +107,7 @@ router.post('/', requireStudent, upload.single('file'), async (req, res) => {
       type,
       message: message || null,
       filePath,
-      fileName: req.file ? req.file.originalname : null,
+      fileName: hasVideo ? (req.body.fileName || '').trim().slice(0, 255) || null : null,
       fontFamily: FONT_FAMILY,
       textColor: TEXT_COLOR,
       fontSize: FONT_SIZE,
@@ -127,6 +117,7 @@ router.post('/', requireStudent, upload.single('file'), async (req, res) => {
 
     res.json(toPublic(sub, false));
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('submission create failed', err);
     res.status(500).json({ error: 'Could not save submission' });
   }

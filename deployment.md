@@ -15,8 +15,13 @@ Internet → Route 53 (DNS) → EC2 (Elastic IP)
                                    ├─ /api/*  → backend container  (Node/Express, :4173)
                                    └─ /*      → frontend container (Next.js,    :3001)
 Backend  → MongoDB Atlas (database)
-Backend  → S3 bucket (photos/videos/generated files)
+Backend  → S3 bucket (generated files, reading videos back for compositing)
+Browser  → S3 bucket (direct presigned PUT for video/photo uploads)
 ```
+
+Uploads don't pass through the server: the backend signs a short-lived S3 URL and
+the browser PUTs the file straight to the bucket, then posts only the resulting
+key back. That keeps 200MB videos off the app server's RAM and bandwidth.
 
 ---
 
@@ -40,6 +45,9 @@ Bucket names must be globally unique, so pick something specific like `teachers-
 3. Under **Block Public Access settings**, uncheck **"Block all public access"** and confirm the warning (we grant access via a bucket policy instead).
 4. Click **Create bucket**.
 5. Open the new bucket → **Permissions** tab → **Bucket policy** → paste in the contents of `infra/s3-bucket-policy.json` from this repo, replacing `REPLACE_BUCKET_NAME` with your real bucket name.
+6. Same **Permissions** tab → **Cross-origin resource sharing (CORS)** → **Edit** → paste in the contents of `infra/s3-cors.json`, replacing `REPLACE_YOUR_DOMAIN` with your real domain (e.g. `tributes.yourdomain.com`).
+
+   This step is **required**: the browser uploads videos and professor photos straight to S3 (the app server only signs the request), and without a CORS rule the browser blocks those uploads. Keep the `http://localhost:3001` entry if you develop locally; drop it if you don't.
 
 **Or via CLI** (once `aws configure` is set up with your credentials):
 ```bash
@@ -54,6 +62,13 @@ aws s3api put-public-access-block --bucket "$BUCKET" --public-access-block-confi
 
 sed "s/REPLACE_BUCKET_NAME/$BUCKET/" infra/s3-bucket-policy.json > /tmp/bucket-policy.json
 aws s3api put-bucket-policy --bucket "$BUCKET" --policy file:///tmp/bucket-policy.json
+
+sed "s/REPLACE_YOUR_DOMAIN/tributes.yourdomain.com/" infra/s3-cors.json > /tmp/cors-rules.json
+aws s3api put-bucket-cors --bucket "$BUCKET" \
+  --cors-configuration "{\"CORSRules\": $(cat /tmp/cors-rules.json)}"
+
+# verify the CORS rule landed
+aws s3api get-bucket-cors --bucket "$BUCKET"
 ```
 
 Keep your bucket name and region handy — you'll need them in Step 5.

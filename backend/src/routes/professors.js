@@ -1,20 +1,11 @@
 const express = require('express');
-const multer = require('multer');
 const { professors, submissions } = require('../lib/store');
 const { requireAuth, requireAdmin } = require('../lib/middleware');
 const { INSTITUTES } = require('../lib/institutes');
 const storage = require('../lib/storage');
+const { resolveUpload } = require('./uploads');
 
 const router = express.Router();
-
-const uploadPhoto = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!/^image\//.test(file.mimetype)) return cb(new Error('Photo must be an image'));
-    cb(null, true);
-  }
-});
 
 function toPublic(p) {
   return {
@@ -35,13 +26,17 @@ router.get('/', requireAuth, async (req, res) => {
   res.json(list.map(toPublic));
 });
 
-router.post('/', requireAdmin, uploadPhoto.single('photo'), async (req, res) => {
+// Photos, like videos, are PUT straight to S3 by the browser — this request
+// carries only the {photoKey, photoToken} that upload produced.
+router.post('/', requireAdmin, async (req, res) => {
   const institute = (req.body.institute || '').trim();
   const name = (req.body.name || '').trim();
   const designation = (req.body.designation || '').trim();
   const email = (req.body.email || '').trim();
 
-  if (!institute || !name || !designation || !req.file) {
+  const photoKey = (req.body.photoKey || '').trim();
+
+  if (!institute || !name || !designation || !photoKey) {
     return res.status(400).json({ error: 'Institute, name, designation and photo are required' });
   }
   if (!INSTITUTES.includes(institute)) {
@@ -49,20 +44,18 @@ router.post('/', requireAdmin, uploadPhoto.single('photo'), async (req, res) => 
   }
 
   try {
-    const photoPath = await storage.uploadBuffer('photos', req.file.buffer, {
-      originalName: req.file.originalname,
-      contentType: req.file.mimetype
-    });
+    const photoPath = await resolveUpload('photo', { key: photoKey, token: req.body.photoToken });
 
     const prof = await professors.create({ institute, name, designation, email, photoPath });
     res.json(toPublic(prof));
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('professor create failed', err);
     res.status(500).json({ error: 'Could not save professor' });
   }
 });
 
-router.patch('/:id', requireAdmin, uploadPhoto.single('photo'), async (req, res) => {
+router.patch('/:id', requireAdmin, async (req, res) => {
   const existing = await professors.get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
 
@@ -81,17 +74,17 @@ router.patch('/:id', requireAdmin, uploadPhoto.single('photo'), async (req, res)
   try {
     const patch = { institute, name, designation, email: email || null };
 
-    if (req.file) {
-      patch.photoPath = await storage.uploadBuffer('photos', req.file.buffer, {
-        originalName: req.file.originalname,
-        contentType: req.file.mimetype
-      });
+    // Photo is optional on edit — only replaced when the admin picked a new one.
+    const photoKey = (req.body.photoKey || '').trim();
+    if (photoKey) {
+      patch.photoPath = await resolveUpload('photo', { key: photoKey, token: req.body.photoToken });
     }
 
     const prof = await professors.update(req.params.id, patch);
-    if (req.file && existing.photoPath) storage.remove(existing.photoPath).catch(() => {});
+    if (photoKey && existing.photoPath) storage.remove(existing.photoPath).catch(() => {});
     res.json(toPublic(prof));
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('professor update failed', err);
     res.status(500).json({ error: 'Could not update professor' });
   }

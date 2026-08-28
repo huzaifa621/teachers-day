@@ -1,0 +1,12 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://REPLACE_YOUR_DOMAIN",
+      "http://localhost:3001"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]

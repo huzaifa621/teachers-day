@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { uploadDirect } from '../../lib/upload';
 import { addMySubmissionIds } from '../../lib/mySubmissions';
 import { getDeviceId } from '../../lib/deviceId';
 import { FIXED_STYLE, nameFontSize, Loader, ErrorState } from '../shared';
@@ -20,6 +21,8 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
   const [tributes, setTributes] = useState({});
   const [alert, setAlertMsg] = useState(null);
   const [busy, setBusy] = useState(false);
+  // null when no upload is in flight, otherwise 0-100 for the current video.
+  const [uploadPct, setUploadPct] = useState(null);
   const videoInputRef = useRef(null);
   const pendingVideoProfId = useRef(null);
 
@@ -96,16 +99,27 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
     let failureMessage = null;
     for (const profId of selectedProfIds) {
       const t = getTribute(profId);
-      const fd = new FormData();
-      fd.append('profId', profId);
-      const deviceId = getDeviceId();
-      if (deviceId) fd.append('deviceId', deviceId);
-      if (t.mode === 'text') fd.append('message', t.message.trim());
-      if (t.mode === 'video') fd.append('file', t.videoFile);
+      const payload = { profId, deviceId: getDeviceId() || undefined };
+      if (t.mode === 'text') payload.message = t.message.trim();
       try {
-        const sub = await api('/api/submissions', { method: 'POST', body: fd });
+        // The video goes straight from the browser to S3; only the resulting
+        // key travels through our API (see lib/upload.js).
+        if (t.mode === 'video') {
+          setUploadPct(0);
+          const { key, token } = await uploadDirect('video', t.videoFile, setUploadPct);
+          payload.fileKey = key;
+          payload.fileToken = token;
+          payload.fileName = t.videoFile.name;
+          setUploadPct(null);
+        }
+        const sub = await api('/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
         results.push(sub);
       } catch (e) {
+        setUploadPct(null);
         failedProf = professors.find((p) => p.id === profId);
         failureMessage = e.message;
         break;
@@ -156,7 +170,13 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
           <input ref={videoInputRef} type="file" accept="video/*" onChange={onVideoChange} style={{ display: 'none' }} />
 
           <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit Tribute'}</button>
-          {busy && <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>This can take a minute for a video tribute — please don&apos;t close this tab.</p>}
+          {busy && (
+            <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+              {uploadPct === null
+                ? 'This can take a minute for a video tribute — please don\u2019t close this tab.'
+                : `Uploading video… ${uploadPct}% — please don\u2019t close this tab.`}
+            </p>
+          )}
         </div>
 
         <div>
