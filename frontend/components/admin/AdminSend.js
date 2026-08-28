@@ -3,32 +3,32 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { copyToClipboard } from '../../lib/clipboard';
-import { typeLabel, ProfessorPreviewSlider, Loader, ErrorState } from '../shared';
+import { typeLabel, FacultyPreviewSlider, Loader, ErrorState } from '../shared';
 
-export default function AdminSend({ active, professors, profsLoading, profsError, onRetryProfessors }) {
+export default function AdminSend({ active, facultyList, facultyLoading, facultyError, onRetryFaculty }) {
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [previewProf, setPreviewProf] = useState(null);
+  const [previewFaculty, setPreviewFaculty] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [linkError, setLinkError] = useState(null);
   const [csvBusy, setCsvBusy] = useState(false);
 
   function downloadLinksCsv() {
     setCsvBusy(true);
-    downloadFile(`/api/professors/links.csv?origin=${encodeURIComponent(window.location.origin)}`)
+    downloadFile(`/api/faculty/links.csv?origin=${encodeURIComponent(window.location.origin)}`)
       .catch((err) => setLinkError(err.message || 'Could not download CSV.'))
       .finally(() => setCsvBusy(false));
   }
 
-  async function copyLink(profId) {
+  async function copyLink(facultyId) {
     try {
-      const { token } = await api(`/api/professors/${profId}/link`);
+      const { token } = await api(`/api/faculty/${facultyId}/link`);
       const url = `${window.location.origin}/p/${token}`;
       await copyToClipboard(url);
-      setCopiedId(profId);
+      setCopiedId(facultyId);
       setLinkError(null);
-      setTimeout(() => setCopiedId((id) => (id === profId ? null : id)), 2000);
+      setTimeout(() => setCopiedId((id) => (id === facultyId ? null : id)), 2000);
     } catch (err) {
       setLinkError(err.message || 'Could not copy link.');
     }
@@ -54,39 +54,39 @@ export default function AdminSend({ active, professors, profsLoading, profsError
     <div className={`tab-content ${active ? 'active' : ''}`}>
       <div className="form-section">
         <div className="top-bar" style={{ marginBottom: 6 }}>
-          <h2 style={{ margin: 0 }}>Send Tributes to Professors</h2>
+          <h2 style={{ margin: 0 }}>Send Tributes to Faculty</h2>
           <button className="btn-secondary btn-small" disabled={csvBusy} onClick={downloadLinksCsv}>
             {csvBusy ? 'Preparing...' : 'Download Links CSV'}
           </button>
         </div>
-        <p className="muted">Review each professor&apos;s approved tributes, then share their link over email.</p>
+        <p className="muted">Review each faculty&apos;s approved tributes, then share their link over email.</p>
 
         {linkError && <div className="alert show" style={{ display: 'block', background: '#f0e6cf', borderLeft: '4px solid var(--brown)' }}>{linkError}</div>}
 
-        {(loading || profsLoading) && <Loader text="Loading tributes…" />}
+        {(loading || facultyLoading) && <Loader text="Loading tributes…" />}
         {!loading && loadError && <ErrorState message={loadError} onRetry={loadSubs} />}
-        {!profsLoading && profsError && <ErrorState message={profsError} onRetry={onRetryProfessors} />}
-        {!loading && !loadError && !profsLoading && !profsError && professors.length === 0 && <p className="muted">No professors yet.</p>}
-        {!loading && !loadError && !profsLoading && !profsError && professors.map((p) => {
-          const profSubs = approvedSubs.filter((s) => s.profId === p.id);
+        {!facultyLoading && facultyError && <ErrorState message={facultyError} onRetry={onRetryFaculty} />}
+        {!loading && !loadError && !facultyLoading && !facultyError && facultyList.length === 0 && <p className="muted">No faculty yet.</p>}
+        {!loading && !loadError && !facultyLoading && !facultyError && facultyList.map((p) => {
+          const memberSubs = approvedSubs.filter((s) => s.facultyId === p.id);
           return (
-            <div key={p.id} className="prof-send-row">
+            <div key={p.id} className="faculty-send-row">
               <div className="who">
                 <img src={p.photo} alt={p.name} />
                 <div>
                   <div><strong>{p.name}</strong></div>
-                  <div className="meta">{p.institute} &middot; {p.designation} &middot; {profSubs.length} approved tribute(s)</div>
+                  <div className="meta">{(p.institutes || []).join(' · ')} &middot; {memberSubs.length} approved tribute(s)</div>
                 </div>
               </div>
               <div className="actions">
-                <button className="btn-secondary btn-small" onClick={() => setPreviewProf(p)}>Preview</button>
+                <button className="btn-secondary btn-small" onClick={() => setPreviewFaculty(p)}>Preview</button>
                 <button className="btn-secondary btn-small" onClick={() => copyLink(p.id)}>
                   {copiedId === p.id ? 'Copied!' : 'Copy Link'}
                 </button>
               </div>
-              {profSubs.length > 0 && (
+              {memberSubs.length > 0 && (
                 <div className="media-list" style={{ width: '100%' }}>
-                  {profSubs.map((s) => (
+                  {memberSubs.map((s) => (
                     <div key={s.id} className="media-row">
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span className="media-row-thumb">
@@ -102,11 +102,11 @@ export default function AdminSend({ active, professors, profsLoading, profsError
           );
         })}
       </div>
-      {previewProf && (
-        <ProfessorPreviewSlider
-          professor={previewProf}
-          submissions={approvedSubs.filter((s) => s.profId === previewProf.id)}
-          onClose={() => setPreviewProf(null)}
+      {previewFaculty && (
+        <FacultyPreviewSlider
+          faculty={previewFaculty}
+          submissions={approvedSubs.filter((s) => s.facultyId === previewFaculty.id)}
+          onClose={() => setPreviewFaculty(null)}
         />
       )}
     </div>

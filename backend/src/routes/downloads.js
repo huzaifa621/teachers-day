@@ -1,6 +1,6 @@
 const express = require('express');
-const { submissions, professors } = require('../lib/store');
-const { generateDownload, generateProfessorBundlePdf } = require('../lib/downloads');
+const { submissions, faculty } = require('../lib/store');
+const { generateDownload, generateFacultyBundlePdf } = require('../lib/downloads');
 const { requireAuth, requireAdmin } = require('../lib/middleware');
 
 const router = express.Router();
@@ -14,12 +14,12 @@ function slug(str) {
 router.get('/submissions/:id/download', requireAuth, async (req, res) => {
   const sub = await submissions.get(req.params.id);
   if (!sub) return res.status(404).json({ error: 'Not found' });
-  const prof = await professors.get(sub.profId);
-  if (!prof) return res.status(404).json({ error: 'Professor no longer exists' });
+  const member = await faculty.get(sub.facultyId);
+  if (!member) return res.status(404).json({ error: 'Faculty member no longer exists' });
 
   try {
-    const { buffer, mime, ext } = await generateDownload(sub, prof);
-    const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.profName)}.${ext}`;
+    const { buffer, mime, ext } = await generateDownload(sub, member);
+    const filename = `postcard-${slug(sub.studentName)}-to-${slug(sub.facultyName)}.${ext}`;
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
@@ -29,17 +29,17 @@ router.get('/submissions/:id/download', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/professors/:id/download/pdf', requireAdmin, async (req, res) => {
-  const prof = await professors.get(req.params.id);
-  if (!prof) return res.status(404).json({ error: 'Not found' });
-  const textSubs = (await submissions.byProfessor(prof._id))
+router.get('/faculty/:id/download/pdf', requireAdmin, async (req, res) => {
+  const member = await faculty.get(req.params.id);
+  if (!member) return res.status(404).json({ error: 'Not found' });
+  const textSubs = (await submissions.byFaculty(member._id))
     .filter((s) => s.type === 'text' && (s.status || 'pending') === 'approved');
   if (textSubs.length === 0) {
-    return res.status(404).json({ error: 'No approved text tributes for this professor yet' });
+    return res.status(404).json({ error: 'No approved text tributes for this faculty member yet' });
   }
   try {
-    const buffer = await generateProfessorBundlePdf(prof, textSubs);
-    const filename = `tributes-for-${slug(prof.name)}.pdf`;
+    const buffer = await generateFacultyBundlePdf(member, textSubs);
+    const filename = `tributes-for-${slug(member.name)}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

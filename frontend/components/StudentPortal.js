@@ -10,33 +10,33 @@ import StudentSubmit from './student/StudentSubmit';
 export default function StudentPortal() {
   const { session, setSession, logout } = useSession();
   const { institutes, loading: institutesLoading, error: institutesError, retry: retryInstitutes } = useInstitutes();
-  const [professors, setProfessors] = useState([]);
-  const [profsLoading, setProfsLoading] = useState(true);
-  const [profsError, setProfsError] = useState(null);
+  const [facultyList, setFacultyList] = useState([]);
+  const [facultyLoading, setFacultyLoading] = useState(true);
+  const [facultyError, setFacultyError] = useState(null);
   const [activeTab, setActiveTab] = useState('student');
-  // setInterval below closes over loadProfessors once, at effect-setup
-  // time — a ref (unlike reading `professors` directly) always reflects
+  // setInterval below closes over loadFaculty once, at effect-setup
+  // time — a ref (unlike reading `facultyList` directly) always reflects
   // the latest list even from that stale closure.
-  const professorsRef = useRef([]);
-  useEffect(() => { professorsRef.current = professors; }, [professors]);
+  const facultyRef = useRef([]);
+  useEffect(() => { facultyRef.current = facultyList; }, [facultyList]);
 
   useEffect(() => {
     if (!session || session === 'loading' || session === 'anon' || session.role !== 'student') return;
-    loadProfessors();
-    const interval = setInterval(loadProfessors, 5000);
+    loadFaculty();
+    const interval = setInterval(loadFaculty, 5000);
     return () => clearInterval(interval);
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function loadProfessors() {
-    api('/api/professors')
-      .then((data) => { setProfessors(data); setProfsError(null); })
+  function loadFaculty() {
+    api('/api/faculty')
+      .then((data) => { setFacultyList(data); setFacultyError(null); })
       .catch((e) => {
         // The 5s polling interval keeps retrying on its own, so a background
         // poll failure shouldn't wipe an already-loaded list — only surface
         // the error state if we don't have anything to show yet.
-        if (professorsRef.current.length === 0) setProfsError(e.message || 'Could not load professors.');
+        if (facultyRef.current.length === 0) setFacultyError(e.message || 'Could not load faculty.');
       })
-      .finally(() => setProfsLoading(false));
+      .finally(() => setFacultyLoading(false));
   }
 
   if (session === 'loading') return null;
@@ -73,10 +73,10 @@ export default function StudentPortal() {
       <StudentSubmit
         active={activeTab === 'student'}
         studentName={session.name}
-        professors={professors}
-        profsLoading={profsLoading}
-        profsError={profsError}
-        onRetryProfessors={loadProfessors}
+        facultyList={facultyList}
+        facultyLoading={facultyLoading}
+        facultyError={facultyError}
+        onRetryFaculty={loadFaculty}
         onSubmitted={() => {}}
       />
       <Gallery active={activeTab === 'gallery'} isAdmin={false} mineOnly />

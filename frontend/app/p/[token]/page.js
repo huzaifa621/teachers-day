@@ -24,9 +24,12 @@ export async function generateMetadata({ params }) {
   const result = await getTributes(token);
   if (!result.data) return { title: result.unreachable ? "Teachers' Day Postcard Portal" : 'Link not found' };
 
-  const { professor } = result.data;
-  const title = `Happy Teachers' Day, ${professor.name}!`;
-  const description = `${professor.designation} · ${professor.institute} — see the Teachers' Day tributes shared with ${professor.name}.`;
+  const { faculty } = result.data;
+  const title = `Happy Teachers' Day, ${faculty.name}!`;
+  const institutes = (faculty.institutes || []).join(' · ');
+  const description = institutes
+    ? `${institutes} — see the Teachers' Day tributes shared with ${faculty.name}.`
+    : `See the Teachers' Day tributes shared with ${faculty.name}.`;
 
   return {
     title,
@@ -34,7 +37,7 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title,
       description,
-      images: professor.photo ? [professor.photo] : []
+      images: faculty.photo ? [faculty.photo] : []
     }
   };
 }
@@ -54,7 +57,7 @@ export default async function PublicTributesPage({ params }) {
 
   return (
     <PublicTributesClient
-      professor={result.data ? result.data.professor : null}
+      faculty={result.data ? result.data.faculty : null}
       submissions={result.data ? result.data.submissions : []}
     />
   );

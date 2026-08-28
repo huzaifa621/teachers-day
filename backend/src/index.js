@@ -5,7 +5,7 @@ const session = require('cookie-session');
 const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
-const professorRoutes = require('./routes/professors');
+const facultyRoutes = require('./routes/faculty');
 const submissionRoutes = require('./routes/submissions');
 const uploadRoutes = require('./routes/uploads');
 const downloadRoutes = require('./routes/downloads');
@@ -54,7 +54,7 @@ app.use(session({
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/professors', professorRoutes);
+app.use('/api/faculty', facultyRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api', downloadRoutes);

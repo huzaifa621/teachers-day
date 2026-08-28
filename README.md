@@ -1,6 +1,6 @@
 # Teachers' Day Postcard Portal
 
-Students submit tributes (message / video / PDF) to professors; admins manage professors
+Students submit tributes (message / video / PDF) to faculty; admins manage faculty
 and download postcards to share. Now split into two separately deployable projects:
 
 - `backend/` — Express API. Data in MongoDB, files in a Supabase Storage bucket.
@@ -33,18 +33,18 @@ Runs at http://localhost:3000 and calls the backend via `NEXT_PUBLIC_API_URL` (s
 
 ## Institutes
 
-The institute list (used by the student-login dropdown, the Add Professor dropdown, and to
-filter which professors a student sees) is a single hardcoded list in
+The institute list (used by the student-login dropdown, the Add Faculty picker, and to
+filter which faculty a student sees) is a single hardcoded list in
 `backend/src/lib/institutes.js`, served publicly at `GET /api/institutes`. Update it there when
-the official list changes — no other code needs to change. Students only ever see professors
+the official list changes — no other code needs to change. Students only ever see faculty
 belonging to the institute they logged in with.
 
 ## Data & storage
 
-- **MongoDB** holds `professors` (institute, name, designation, email, photo) and `submissions`
-  (message/video tribute, target professor, moderation `status`) collections
+- **MongoDB** holds `faculty` (institutes, name, email, photo) and `submissions`
+  (message/video tribute, target faculty, moderation `status`) collections
   (see `backend/src/lib/store.js`).
-- **Supabase Storage** holds professor photos, submitted videos/PDFs, and generated postcard
+- **Supabase Storage** holds faculty photos, submitted videos/PDFs, and generated postcard
   exports, in a single bucket under `photos/`, `videos/`, `pdfs/`, `generated/` prefixes
   (see `backend/src/lib/storage.js`). The bucket is expected to be **public** — matches the
   old app's behavior where uploaded files were served without auth (only the API metadata
@@ -56,7 +56,7 @@ Every submitted tribute starts as `status: "pending"`. Admins review tributes in
 (grouped by institute) and Approve or Reject each one — invisible to students, who only ever see
 their own submitted-successfully confirmation (with immediate download links) and, in the shared
 Gallery, only tributes that have been approved. Only **approved** tributes count toward a
-professor's combined PDF / appear in the Send-to-Profs media list — pending or rejected ones are
+faculty's combined PDF / appear in the Send-to-Faculty media list — pending or rejected ones are
 excluded there even though an admin can still see and moderate them from the Gallery.
 
 ## Rendering pipeline
@@ -85,11 +85,11 @@ Since each service's URL depends on the other, deploy both once to get their Rai
 domains, then set `FRONTEND_ORIGIN` (backend) and `NEXT_PUBLIC_API_URL` (frontend) to point at
 each other's real URLs and redeploy both.
 
-## Admin: sending tributes to professors
+## Admin: sending tributes to faculty
 
-The "Send to Profs" tab lists every professor (grouped by institute) with a **combined PDF** of
+The "Send to Faculty" tab lists every faculty (grouped by institute) with a **combined PDF** of
 their approved message tributes, plus each approved video/PDF tribute individually (**PDF** and
-**Card** buttons), a **Preview** button (slider through that professor's approved tributes), and
+**Card** buttons), a **Preview** button (slider through that faculty's approved tributes), and
 a checkbox + email template textarea + Send button. The email template/checkbox/Send UI is a
 placeholder for now — nothing is persisted or sent; Send just confirms your selection. Real
 sending will be wired up once Google account integration is added. Video cards are real MP4
@@ -98,7 +98,7 @@ or email as-is.
 
 ## Notes
 
-- No email sending is wired up yet — downloads (and the Send-to-Profs placeholder above) only.
+- No email sending is wired up yet — downloads (and the Send-to-Faculty placeholder above) only.
 - There is no bulk "clear all data" control in the UI. Clearing data means going into
   MongoDB/Supabase directly.
 - Sessions are stored signed in the cookie itself (no server-side session store), since

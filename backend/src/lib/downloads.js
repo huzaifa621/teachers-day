@@ -8,13 +8,13 @@ const { urlToDataUri } = require('./assets');
 const { SCRATCH_DIR } = require('./paths');
 const storage = require('./storage');
 
-async function profPhotoDataUri(prof) {
-  return urlToDataUri(storage.publicUrl(prof.photoPath));
+async function facultyPhotoDataUri(member) {
+  return urlToDataUri(storage.publicUrl(member.photoPath));
 }
 
 function baseData(sub) {
   return {
-    profName: sub.profName,
+    facultyName: sub.facultyName,
     studentName: sub.studentName,
     fontFamily: sub.fontFamily,
     textColor: sub.textColor,
@@ -32,7 +32,7 @@ async function downloadToScratch(key) {
 // Single download for a submission — exactly what the portal shows: a PNG
 // snapshot of the postcard for text tributes, a short looping GIF (postcard
 // frame + video composited together) for video tributes.
-async function generateDownload(sub, prof) {
+async function generateDownload(sub, member) {
   if (sub.type === 'video') {
     // cached in Supabase since compositing is slow
     const cachedKey = `generated/${sub._id}_card.gif`;
@@ -47,7 +47,7 @@ async function generateDownload(sub, prof) {
       await compositeVideoGif({
         videoPath: sourcePath,
         ...baseData(sub),
-        profPhotoDataUri: await profPhotoDataUri(prof),
+        facultyPhotoDataUri: await facultyPhotoDataUri(member),
         outPath
       });
       const buffer = fs.readFileSync(outPath);
@@ -63,20 +63,20 @@ async function generateDownload(sub, prof) {
   // text (and legacy 'pdf' submissions from the old app) render as a single PNG snapshot
   const html = renderPostcardHTML({
     ...baseData(sub),
-    profPhotoDataUri: await profPhotoDataUri(prof),
+    facultyPhotoDataUri: await facultyPhotoDataUri(member),
     media: sub.type === 'pdf' ? { kind: 'pdf', fileName: sub.fileName } : { kind: 'text', message: sub.message }
   });
   const buffer = await renderPNG(html, { scale: 2 });
   return { buffer, mime: 'image/png', ext: 'png' };
 }
 
-async function generateProfessorBundlePdf(prof, textSubmissions) {
+async function generateFacultyBundlePdf(member, textSubmissions) {
   const buffers = [];
-  const photoDataUri = await profPhotoDataUri(prof);
+  const photoDataUri = await facultyPhotoDataUri(member);
   for (const sub of textSubmissions) {
     const html = renderPostcardHTML({
       ...baseData(sub),
-      profPhotoDataUri: photoDataUri,
+      facultyPhotoDataUri: photoDataUri,
       media: { kind: 'text', message: sub.message }
     });
     buffers.push(await renderPDF(html));
@@ -84,4 +84,4 @@ async function generateProfessorBundlePdf(prof, textSubmissions) {
   return mergePDFs(buffers);
 }
 
-module.exports = { generateDownload, generateProfessorBundlePdf, profPhotoDataUri };
+module.exports = { generateDownload, generateFacultyBundlePdf, facultyPhotoDataUri };

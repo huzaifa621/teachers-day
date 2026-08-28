@@ -10,7 +10,7 @@ const LAYOUT = {
   contentPadding: 30,
   gap: 34,
   // Tribute text/video gets 65% of the postcard; the remaining 35% carries
-  // the fixed elements (professor photo, names, masai branding).
+  // the fixed elements (faculty photo, names, masai branding).
   leftRatio: 0.65
 };
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const { professors, submissions } = require('../lib/store');
+const { faculty, submissions } = require('../lib/store');
 const storage = require('../lib/storage');
 
 const router = express.Router();
@@ -8,9 +8,9 @@ function toPublicSubmission(s) {
   return {
     id: String(s._id),
     studentName: s.studentName,
-    profName: s.profName,
-    profInstitute: s.profInstitute,
-    profPhoto: storage.publicUrl(s.profPhotoPath),
+    facultyName: s.facultyName,
+    facultyInstitute: s.facultyInstitute,
+    facultyPhoto: storage.publicUrl(s.facultyPhotoPath),
     type: s.type,
     message: s.message,
     fileName: s.fileName,
@@ -18,21 +18,20 @@ function toPublicSubmission(s) {
   };
 }
 
-// Unauthenticated by design — this is the link professors get in email so they
+// Unauthenticated by design — this is the link faculty get in email so they
 // can scroll through their tributes without logging into the portal.
 router.get('/tributes/:token', async (req, res) => {
-  const prof = await professors.getByShareToken(req.params.token);
-  if (!prof) return res.status(404).json({ error: 'Not found' });
+  const member = await faculty.getByShareToken(req.params.token);
+  if (!member) return res.status(404).json({ error: 'Not found' });
 
-  const all = await submissions.byProfessor(String(prof._id));
+  const all = await submissions.byFaculty(String(member._id));
   const approved = all.filter((s) => s.status === 'approved');
 
   res.json({
-    professor: {
-      name: prof.name,
-      institute: prof.institute,
-      designation: prof.designation,
-      photo: storage.publicUrl(prof.photoPath)
+    faculty: {
+      name: member.name,
+      institutes: member.institutes || [],
+      photo: storage.publicUrl(member.photoPath)
     },
     submissions: approved.map(toPublicSubmission)
   });

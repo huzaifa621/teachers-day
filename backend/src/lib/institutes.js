@@ -1,4 +1,4 @@
-// Single source of truth for the institute list, used by the professor-add
+// Single source of truth for the institute list, used by the faculty-add
 // dropdown and the student-login dropdown. Update here when the official
 // list changes.
 const INSTITUTES = [

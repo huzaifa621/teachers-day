@@ -1,5 +1,5 @@
 const express = require('express');
-const { professors, submissions } = require('../lib/store');
+const { faculty, submissions } = require('../lib/store');
 const { requireAuth, requireStudent, requireAdmin } = require('../lib/middleware');
 const storage = require('../lib/storage');
 const { resolveUpload } = require('./uploads');
@@ -16,10 +16,10 @@ function toPublic(s, includeInternal) {
     id: String(s._id),
     studentName: s.studentName,
     studentInstitute: s.studentInstitute,
-    profId: s.profId,
-    profName: s.profName,
-    profInstitute: s.profInstitute,
-    profPhoto: storage.publicUrl(s.profPhotoPath),
+    facultyId: s.facultyId,
+    facultyName: s.facultyName,
+    facultyInstitute: s.facultyInstitute,
+    facultyPhoto: storage.publicUrl(s.facultyPhotoPath),
     type: s.type,
     message: s.message,
     fileName: s.fileName,
@@ -73,7 +73,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 // request carries only the resulting {fileKey, fileToken}. So the request body
 // is small JSON whatever the video's size.
 router.post('/', requireStudent, async (req, res) => {
-  const profId = req.body.profId;
+  const facultyId = req.body.facultyId;
   const message = (req.body.message || '').trim();
   const fileKey = (req.body.fileKey || '').trim();
   const hasVideo = !!fileKey;
@@ -87,9 +87,9 @@ router.post('/', requireStudent, async (req, res) => {
   if (message.length > 2000) {
     return res.status(400).json({ error: 'Message is too long' });
   }
-  const prof = await professors.get(profId);
-  if (!prof) {
-    return res.status(400).json({ error: 'Selected professor no longer exists' });
+  const member = await faculty.get(facultyId);
+  if (!member) {
+    return res.status(400).json({ error: 'Selected faculty member no longer exists' });
   }
 
   const type = hasVideo ? 'video' : 'text';
@@ -103,7 +103,7 @@ router.post('/', requireStudent, async (req, res) => {
     const sub = await submissions.create({
       studentName: req.session.studentName,
       studentInstitute: req.session.studentInstitute,
-      prof,
+      member,
       type,
       message: message || null,
       filePath,

@@ -10,7 +10,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Shrinks a name's font size as it gets longer so long professor/student
+// Shrinks a name's font size as it gets longer so long faculty/student
 // names don't overflow their box. Keep in sync with the equivalent in
 // frontend/components/shared.js (nameFontSize).
 function nameFontSize(name, base, min = 13) {
@@ -21,8 +21,8 @@ function nameFontSize(name, base, min = 13) {
 
 // media: { kind: 'text', message } | { kind: 'pdf', fileName } | { kind: 'image', src } | { kind: 'hole' }
 function renderPostcardHTML({
-  profName,
-  profPhotoDataUri,
+  facultyName,
+  facultyPhotoDataUri,
   studentName,
   media,
   fontFamily = 'Georgia, serif',
@@ -126,15 +126,15 @@ function renderPostcardHTML({
       border-radius: 4px;
       padding: 4px 2px;
     }
-    .prof-block { text-align: center; margin-top: 90px; }
-    .prof-photo {
+    .faculty-block { text-align: center; margin-top: 90px; }
+    .faculty-photo {
       width: 132px; height: 158px; margin: 0 auto 14px;
       border: 3px solid #8b6f47; border-radius: 3px; overflow: hidden;
       box-shadow: 0 4px 8px rgba(0,0,0,0.15); background: #d4c5b9;
     }
-    .prof-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .faculty-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .label { font-weight: 700; font-size: 14px; letter-spacing: 0.5px; color: #6b5344; margin-bottom: 3px; text-transform: uppercase; }
-    .prof-name { font-size: ${nameFontSize(profName, 22)}; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
+    .faculty-name { font-size: ${nameFontSize(facultyName, 22)}; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
     .hr { height: 1px; background: linear-gradient(90deg, transparent, #8b6f47, transparent); margin: 16px 0; }
     .from-block { text-align: center; }
     .student-name { font-size: ${nameFontSize(studentName, 18)}; color: ${textColor}; font-weight: 600; word-wrap: break-word; }
@@ -169,10 +169,10 @@ function renderPostcardHTML({
   <div class="left-hole">${leftContent}</div>
   <div class="divider"></div>
   <div class="right-panel">
-    <div class="prof-block">
-      <div class="prof-photo">${profPhotoDataUri ? `<img src="${profPhotoDataUri}" alt="${escapeHtml(profName)}">` : ''}</div>
+    <div class="faculty-block">
+      <div class="faculty-photo">${facultyPhotoDataUri ? `<img src="${facultyPhotoDataUri}" alt="${escapeHtml(facultyName)}">` : ''}</div>
       <div class="label">To</div>
-      <div class="prof-name">${escapeHtml(profName)}</div>
+      <div class="faculty-name">${escapeHtml(facultyName)}</div>
     </div>
     <div>
       <div class="hr"></div>

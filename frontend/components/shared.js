@@ -12,7 +12,7 @@ export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ?
 // Keep in sync with backend/src/lib/postcard-style.js.
 export const FIXED_STYLE = { fontFamily: 'Georgia, serif', textColor: '#2c1810', fontSize: '18px' };
 
-// Shrinks a name's font size as it gets longer so long professor/student
+// Shrinks a name's font size as it gets longer so long faculty/student
 // names don't overflow their box. Keep in sync with the equivalent in
 // backend/src/lib/postcard-template.js.
 export function nameFontSize(name, base, min = 11) {
@@ -22,7 +22,7 @@ export function nameFontSize(name, base, min = 11) {
 }
 
 // Renders the full decorative postcard — same markup students see while
-// composing — so admins/professors viewing a submission see an identical card.
+// composing — so admins/facultyList viewing a submission see an identical card.
 export function PostcardCard({ submission: s }) {
   return (
     <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
@@ -34,10 +34,10 @@ export function PostcardCard({ submission: s }) {
         </div>
         <div className="postcard-divider" />
         <div className="postcard-right">
-          <div className="postcard-prof">
-            <div className="postcard-prof-img">{s.profPhoto && <img src={s.profPhoto} alt={s.profName} />}</div>
+          <div className="postcard-faculty">
+            <div className="postcard-faculty-img">{s.facultyPhoto && <img src={s.facultyPhoto} alt={s.facultyName} />}</div>
             <div className="postcard-label">To</div>
-            <div className="postcard-prof-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(s.profName, 17) }}>{s.profName}</div>
+            <div className="postcard-faculty-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(s.facultyName, 17) }}>{s.facultyName}</div>
           </div>
           <div>
             <div className="postcard-hr" />
@@ -103,6 +103,17 @@ export function groupByInstitute(list, instituteKey) {
   return Object.entries(byInstitute).sort(([a], [b]) => a.localeCompare(b));
 }
 
+// Same idea, but for records whose institute field is an array — a faculty
+// member affiliated with three institutes is listed under all three, since
+// the directory is browsed by institute.
+export function groupByInstitutes(list, institutesKey) {
+  const byInstitute = {};
+  list.forEach((item) => {
+    (item[institutesKey] || []).forEach((inst) => { (byInstitute[inst] ||= []).push(item); });
+  });
+  return Object.entries(byInstitute).sort(([a], [b]) => a.localeCompare(b));
+}
+
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
 export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLinkedIn }) {
@@ -124,7 +135,7 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLink
         {s.message && <div className="gallery-text">&ldquo;{s.message.slice(0, 90)}&rdquo;</div>}
         {!s.message && s.fileName && <div className="gallery-text">{s.fileName}</div>}
         <div className="gallery-meta">
-          <div><strong>To:</strong> {s.profName}</div>
+          <div><strong>To:</strong> {s.facultyName}</div>
           <div><strong>From:</strong> {s.studentName}</div>
           <div><strong>Date:</strong> {new Date(s.createdAt).toLocaleString()}</div>
           {isAdmin && <div><strong>Device:</strong> {s.deviceId || '—'}</div>}
@@ -296,7 +307,7 @@ export function Gallery({ active, isAdmin, mineOnly }) {
     }
   }
 
-  const groups = groupByInstitute(subs, 'profInstitute');
+  const groups = groupByInstitute(subs, 'facultyInstitute');
 
   return (
     <div className={`tab-content ${active ? 'active' : ''}`}>
@@ -324,10 +335,10 @@ export function Gallery({ active, isAdmin, mineOnly }) {
   );
 }
 
-// Click-through slider over one professor's approved tributes (text/video/pdf).
-export function ProfessorPreviewSlider({ professor, submissions, onClose }) {
+// Click-through slider over one faculty's approved tributes (text/video/pdf).
+export function FacultyPreviewSlider({ faculty, submissions, onClose }) {
   const [index, setIndex] = useState(0);
-  if (!professor) return null;
+  if (!faculty) return null;
 
   const s = submissions[index];
 
@@ -335,7 +346,7 @@ export function ProfessorPreviewSlider({ professor, submissions, onClose }) {
     <div className="modal show" onClick={(e) => { if (e.target.classList.contains('modal')) onClose(); }}>
       <div className="modal-content slider-modal">
         <button className="modal-close" onClick={onClose}>&times;</button>
-        <h3 style={{ marginBottom: 10 }}>{professor.name} &mdash; {submissions.length ? `${index + 1} / ${submissions.length}` : 'No approved tributes yet'}</h3>
+        <h3 style={{ marginBottom: 10 }}>{faculty.name} &mdash; {submissions.length ? `${index + 1} / ${submissions.length}` : 'No approved tributes yet'}</h3>
         {s && (
           <div className="slider-body">
             <PostcardCard submission={s} />

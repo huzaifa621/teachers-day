@@ -47,7 +47,7 @@ Bucket names must be globally unique, so pick something specific like `teachers-
 5. Open the new bucket → **Permissions** tab → **Bucket policy** → paste in the contents of `infra/s3-bucket-policy.json` from this repo, replacing `REPLACE_BUCKET_NAME` with your real bucket name.
 6. Same **Permissions** tab → **Cross-origin resource sharing (CORS)** → **Edit** → paste in the contents of `infra/s3-cors.json`, replacing `REPLACE_YOUR_DOMAIN` with your real domain (e.g. `tributes.yourdomain.com`).
 
-   This step is **required**: the browser uploads videos and professor photos straight to S3 (the app server only signs the request), and without a CORS rule the browser blocks those uploads. Keep the `http://localhost:3001` entry if you develop locally; drop it if you don't.
+   This step is **required**: the browser uploads videos and faculty photos straight to S3 (the app server only signs the request), and without a CORS rule the browser blocks those uploads. Keep the `http://localhost:3001` entry if you develop locally; drop it if you don't.
 
 **Or via CLI** (once `aws configure` is set up with your credentials):
 ```bash
@@ -222,6 +222,19 @@ Note: logging into the admin panel requires HTTPS to work correctly (secure cook
   git pull
   docker compose up -d --build
   ```
+
+- **One-off: the professors -> faculty migration.** Needed once, when deploying the
+  release that renamed professors to faculty, made a faculty member's institute a
+  list, dropped designation, and made email a unique identifier. Run it *before*
+  starting the new containers — the app creates a unique index on `email` at boot
+  and will crash if any record has a blank or duplicated address.
+  ```bash
+  docker compose run --rm backend node scripts/migrate-faculty.js          # report only
+  docker compose run --rm backend node scripts/migrate-faculty.js --apply  # migrate
+  ```
+  The report run changes nothing. If it lists blank or duplicated emails, fix those
+  first — only a human can decide the right address. Re-running after a successful
+  migration is a no-op.
 - **Backups:** MongoDB Atlas backs up automatically. Consider enabling S3 bucket versioning as a safety net.
 
 ---

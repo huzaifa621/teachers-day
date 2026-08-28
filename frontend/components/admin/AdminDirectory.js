@@ -1,20 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { groupByInstitute, Loader, ErrorState } from '../shared';
-import AdminEditProf from './AdminEditProf';
+import { groupByInstitutes, Loader, ErrorState } from '../shared';
+import AdminEditFaculty from './AdminEditFaculty';
 import { api } from '../../lib/api';
 
-export default function AdminDirectory({ active, professors, institutes, onChanged, loading, loadError, onRetry }) {
-  const [editingProf, setEditingProf] = useState(null);
+export default function AdminDirectory({ active, facultyList, institutes, onChanged, loading, loadError, onRetry }) {
+  const [editingFaculty, setEditingFaculty] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const groups = groupByInstitute(professors, 'institute');
+  const groups = groupByInstitutes(facultyList, 'institutes');
 
-  async function deleteProf(p) {
+  async function deleteFaculty(p) {
     if (!window.confirm(`Delete ${p.name}? This cannot be undone.`)) return;
     setDeletingId(p.id);
     try {
-      await api(`/api/professors/${p.id}`, { method: 'DELETE' });
+      await api(`/api/faculty/${p.id}`, { method: 'DELETE' });
       onChanged();
     } catch (e) {
       alert(e.message);
@@ -26,24 +26,33 @@ export default function AdminDirectory({ active, professors, institutes, onChang
   return (
     <div className={`tab-content ${active ? 'active' : ''}`}>
       <div className="form-section">
-        <h2>Professor Directory</h2>
-        {loading && <Loader text="Loading professors…" />}
+        <h2>Faculty Directory</h2>
+        {loading && <Loader text="Loading faculty…" />}
         {!loading && loadError && <ErrorState message={loadError} onRetry={onRetry} />}
-        {!loading && !loadError && groups.length === 0 && <p className="muted">No professors yet.</p>}
-        {!loading && !loadError && groups.map(([inst, profs]) => (
+        {!loading && !loadError && groups.length === 0 && <p className="muted">No faculty yet.</p>}
+        {!loading && !loadError && groups.map(([inst, facultyList]) => (
           <div key={inst} className="inst-group">
             <h3>{inst}</h3>
-            <div className="professor-grid" style={{ maxHeight: 'none' }}>
-              {profs.map((p) => (
-                <div key={p.id} className="prof-card" style={{ cursor: 'default' }}>
+            <div className="faculty-grid" style={{ maxHeight: 'none' }}>
+              {facultyList.map((p) => (
+                <div key={p.id} className="faculty-card" style={{ cursor: 'default' }}>
                   <img src={p.photo} alt={p.name} />
                   <div style={{ flex: 1 }}>
                     <p><strong>{p.name}</strong></p>
-                    <p>{p.designation}</p>
+                    <p className="muted tiny">{p.email}</p>
+                    {/* Their other affiliations, so it's clear why the same
+                        person shows up under more than one institute. */}
+                    {(p.institutes || []).length > 1 && (
+                      <div className="institute-chips">
+                        {p.institutes.filter((i) => i !== inst).map((i) => (
+                          <span key={i} className="institute-chip">{i}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'center' }}>
-                    <button type="button" className="gallery-btn alt" onClick={() => setEditingProf(p)}>Edit</button>
-                    <button type="button" className="gallery-btn reject" disabled={deletingId === p.id} onClick={() => deleteProf(p)}>Delete</button>
+                    <button type="button" className="gallery-btn alt" onClick={() => setEditingFaculty(p)}>Edit</button>
+                    <button type="button" className="gallery-btn reject" disabled={deletingId === p.id} onClick={() => deleteFaculty(p)}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -51,13 +60,13 @@ export default function AdminDirectory({ active, professors, institutes, onChang
           </div>
         ))}
       </div>
-      {editingProf && (
-        <AdminEditProf
-          prof={editingProf}
+      {editingFaculty && (
+        <AdminEditFaculty
+          member={editingFaculty}
           institutes={institutes}
-          onClose={() => setEditingProf(null)}
-          onSaved={() => { onChanged(); setEditingProf(null); }}
-          onDeleted={() => { onChanged(); setEditingProf(null); }}
+          onClose={() => setEditingFaculty(null)}
+          onSaved={() => { onChanged(); setEditingFaculty(null); }}
+          onDeleted={() => { onChanged(); setEditingFaculty(null); }}
         />
       )}
     </div>

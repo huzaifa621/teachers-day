@@ -6,67 +6,76 @@ const toId = (id) => {
   try { return new ObjectId(id); } catch (_) { return null; }
 };
 
-const professors = {
+const faculty = {
   async all() {
     const db = await getDb();
-    return db.collection('professors').find({}).sort({ institute: 1, name: 1 }).toArray();
+    return db.collection('faculty').find({}).sort({ name: 1 }).toArray();
   },
   async get(id) {
     const _id = toId(id);
     if (!_id) return null;
     const db = await getDb();
-    return db.collection('professors').findOne({ _id });
+    return db.collection('faculty').findOne({ _id });
   },
+  // `institutes` is an array, and Mongo matches a scalar against any element,
+  // so this finds every faculty member affiliated with the institute.
   async byInstitute(institute) {
     const db = await getDb();
-    return db.collection('professors').find({ institute }).sort({ name: 1 }).toArray();
+    return db.collection('faculty').find({ institutes: institute }).sort({ name: 1 }).toArray();
+  },
+  // Email is the unique identifier for a faculty member (see the unique index
+  // in db.js) — used to reject duplicates on create and on edit.
+  async byEmail(email) {
+    const db = await getDb();
+    return db.collection('faculty').findOne({ email: email.toLowerCase() });
   },
   async getByShareToken(token) {
     const db = await getDb();
-    return db.collection('professors').findOne({ shareToken: token });
+    return db.collection('faculty').findOne({ shareToken: token });
   },
-  // Public tribute links are generated lazily so professors created before this
+  // Public tribute links are generated lazily so faculty created before this
   // feature existed still get a token the first time it's requested.
   async ensureShareToken(id) {
     const _id = toId(id);
     if (!_id) return null;
     const db = await getDb();
-    const prof = await db.collection('professors').findOne({ _id });
-    if (!prof) return null;
-    if (prof.shareToken) return prof.shareToken;
+    const member = await db.collection('faculty').findOne({ _id });
+    if (!member) return null;
+    if (member.shareToken) return member.shareToken;
     const shareToken = crypto.randomBytes(12).toString('hex');
-    await db.collection('professors').updateOne({ _id }, { $set: { shareToken } });
+    await db.collection('faculty').updateOne({ _id }, { $set: { shareToken } });
     return shareToken;
   },
-  async create({ institute, name, designation, email, photoPath }) {
+  async create({ institutes, name, email, photoPath }) {
     const db = await getDb();
     const doc = {
-      institute,
+      institutes,
       name,
-      designation,
-      email: email || null,
+      // Lowercased so the unique index treats Ada@x.edu and ada@x.edu as one
+      // person — otherwise "unique identifier" would be case-dependent.
+      email: email.toLowerCase(),
       photoPath,
       shareToken: crypto.randomBytes(12).toString('hex'),
       createdAt: new Date().toISOString()
     };
-    const { insertedId } = await db.collection('professors').insertOne(doc);
+    const { insertedId } = await db.collection('faculty').insertOne(doc);
     return { ...doc, _id: insertedId };
   },
   async update(id, patch) {
     const _id = toId(id);
     if (!_id) return null;
     const db = await getDb();
-    await db.collection('professors').updateOne({ _id }, { $set: patch });
-    return db.collection('professors').findOne({ _id });
+    await db.collection('faculty').updateOne({ _id }, { $set: patch });
+    return db.collection('faculty').findOne({ _id });
   },
   async remove(id) {
     const _id = toId(id);
     if (!_id) return null;
     const db = await getDb();
-    const prof = await db.collection('professors').findOne({ _id });
-    if (!prof) return null;
-    await db.collection('professors').deleteOne({ _id });
-    return prof;
+    const member = await db.collection('faculty').findOne({ _id });
+    if (!member) return null;
+    await db.collection('faculty').deleteOne({ _id });
+    return member;
   }
 };
 
@@ -81,19 +90,23 @@ const submissions = {
     const db = await getDb();
     return db.collection('submissions').findOne({ _id });
   },
-  async byProfessor(profId) {
+  async byFaculty(facultyId) {
     const db = await getDb();
-    return db.collection('submissions').find({ profId: String(profId) }).sort({ createdAt: 1 }).toArray();
+    return db.collection('submissions').find({ facultyId: String(facultyId) }).sort({ createdAt: 1 }).toArray();
   },
-  async create({ studentName, studentInstitute, prof, type, message, filePath, fileName, fontFamily, textColor, fontSize, deviceId, ip }) {
+  async create({ studentName, studentInstitute, member, type, message, filePath, fileName, fontFamily, textColor, fontSize, deviceId, ip }) {
     const db = await getDb();
     const doc = {
       studentName,
       studentInstitute,
-      profId: String(prof._id),
-      profName: prof.name,
-      profInstitute: prof.institute,
-      profPhotoPath: prof.photoPath,
+      facultyId: String(member._id),
+      facultyName: member.name,
+      // A faculty member can belong to several institutes, but a tribute is
+      // always made through exactly one of them — the institute the student
+      // logged in with, which is why they could see this faculty at all. That
+      // single institute is what the galleries group by.
+      facultyInstitute: studentInstitute,
+      facultyPhotoPath: member.photoPath,
       type,
       message: message || null,
       filePath: filePath || null,
@@ -122,4 +135,4 @@ const submissions = {
   }
 };
 
-module.exports = { professors, submissions };
+module.exports = { faculty, submissions };

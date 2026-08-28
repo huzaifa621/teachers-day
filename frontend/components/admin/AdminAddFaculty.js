@@ -3,15 +3,15 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { uploadDirect } from '../../lib/upload';
+import InstitutePicker from './InstitutePicker';
 
 // Keep in sync with the photo limit in backend/src/routes/uploads.js —
 // an early, friendly rejection instead of waiting on a doomed upload.
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
-export default function AdminAddProf({ active, institutes, onAdded }) {
-  const [institute, setInstitute] = useState('');
+export default function AdminAddFaculty({ active, institutes, onAdded }) {
+  const [selectedInstitutes, setSelectedInstitutes] = useState([]);
   const [name, setName] = useState('');
-  const [designation, setDesignation] = useState('');
   const [email, setEmail] = useState('');
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -36,30 +36,32 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
   }
 
   async function submit() {
-    if (!institute || !name.trim() || !designation.trim() || !photo) {
-      return setAlertMsg({ type: 'error', text: 'Fill all required fields' });
+    if (selectedInstitutes.length === 0) {
+      return setAlertMsg({ type: 'error', text: 'Select at least one institute' });
+    }
+    if (!name.trim() || !email.trim() || !photo) {
+      return setAlertMsg({ type: 'error', text: 'Name, email and photo are required' });
     }
     setBusy(true);
     try {
       // Photo goes browser -> S3 directly; the API only receives its key.
       const { key, token } = await uploadDirect('photo', photo);
-      const prof = await api('/api/professors', {
+      const member = await api('/api/faculty', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          institute,
+          institutes: selectedInstitutes,
           name: name.trim(),
-          designation: designation.trim(),
           email: email.trim(),
           photoKey: key,
           photoToken: token
         })
       });
-      setInstitute(''); setName(''); setDesignation(''); setEmail('');
+      setSelectedInstitutes([]); setName(''); setEmail('');
       setPhoto(null); setPreview(null);
       if (photoInputRef.current) photoInputRef.current.value = '';
-      setAlertMsg({ type: 'success', text: `${prof.name} added!` });
-      onAdded(prof);
+      setAlertMsg({ type: 'success', text: `${member.name} added!` });
+      onAdded(member);
     } catch (e) {
       setAlertMsg({ type: 'error', text: e.message });
     } finally {
@@ -70,21 +72,16 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
   return (
     <div className={`tab-content ${active ? 'active' : ''}`}>
       <div className="form-section">
-        <h2>Add Professor</h2>
+        <h2>Add Faculty</h2>
         {alert && <div className={`alert ${alert.type} show`}>{alert.text}</div>}
+        <InstitutePicker institutes={institutes} selected={selectedInstitutes} onChange={setSelectedInstitutes} disabled={busy} />
         <div className="form-row">
+          <div className="form-group"><label>Faculty Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" /></div>
           <div className="form-group">
-            <label>Institute *</label>
-            <select value={institute} onChange={(e) => setInstitute(e.target.value)}>
-              <option value="">Select institute</option>
-              {institutes.map((inst) => <option key={inst} value={inst}>{inst}</option>)}
-            </select>
+            <label>Email *</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@institute.edu" />
+            <p className="muted" style={{ marginTop: 4 }}>Used as the unique identifier — one faculty member, one email.</p>
           </div>
-          <div className="form-group"><label>Professor Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label>Designation *</label><input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g., Assistant Professor" /></div>
-          <div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" /></div>
         </div>
         <div className="form-group">
           <label>Upload Photo *</label>
@@ -95,7 +92,7 @@ export default function AdminAddProf({ active, institutes, onAdded }) {
           </div>
           {preview && <div><img src={preview} style={{ maxWidth: 100, border: '2px solid #8b6f47', borderRadius: 6, marginTop: 10 }} /></div>}
         </div>
-        <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Adding...' : 'Add Professor'}</button>
+        <button className="btn btn-full" disabled={busy} onClick={submit}>{busy ? 'Adding...' : 'Add Faculty'}</button>
       </div>
     </div>
   );

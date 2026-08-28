@@ -38,7 +38,7 @@ function presignHandler(kind) {
   };
 }
 
-// Shared by the submission and professor routes: turns the {key, token} a
+// Shared by the submission and faculty routes: turns the {key, token} a
 // client reports after its direct PUT into a trusted storage key, or throws.
 // Three things have to hold — we issued the key, the object is really in the
 // bucket, and what landed is the right type and size.

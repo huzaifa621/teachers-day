@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { PostcardCard, typeLabel } from '../../../components/shared';
 import { copyToClipboard } from '../../../lib/clipboard';
 
-export default function PublicTributesClient({ professor, submissions }) {
+export default function PublicTributesClient({ faculty, submissions }) {
   const [index, setIndex] = useState(0);
   const [toast, setToast] = useState(null);
 
-  if (!professor) {
+  if (!faculty) {
     return (
       <div className="container" style={{ textAlign: 'center', paddingTop: 80 }}>
         <h2>Link not found</h2>
@@ -41,10 +41,10 @@ export default function PublicTributesClient({ professor, submissions }) {
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img src="/masai_logo.png" alt="masai" style={{ height: 30, marginBottom: 14 }} />
-        <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {professor.name}!</h2>
-        <p className="muted">
-          {professor.designation} &middot; {professor.institute}
-        </p>
+        <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {faculty.name}!</h2>
+        {(faculty.institutes || []).length > 0 && (
+          <p className="muted">{faculty.institutes.join(' · ')}</p>
+        )}
         {submissions.length > 0 && (
           <p className="muted" style={{ marginTop: 6 }}>
             {typeLabel(s.type)} {index + 1} of {submissions.length}

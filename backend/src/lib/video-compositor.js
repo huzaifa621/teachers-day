@@ -24,16 +24,16 @@ const MAX_DURATION_SEC = 10;
 // source from and uploading the result to Supabase Storage.
 async function compositeVideoGif({
   videoPath,
-  profName,
-  profPhotoDataUri,
+  facultyName,
+  facultyPhotoDataUri,
   studentName,
   fontFamily,
   textColor,
   outPath
 }) {
   const html = renderPostcardHTML({
-    profName,
-    profPhotoDataUri,
+    facultyName,
+    facultyPhotoDataUri,
     studentName,
     fontFamily,
     textColor,

@@ -15,8 +15,8 @@ const EMPTY_TRIBUTE = { mode: null, message: '', videoFile: null, videoUrl: null
 // through a huge upload only to have the server reject it at the end.
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 
-export default function StudentSubmit({ active, studentName, professors, profsLoading, profsError, onRetryProfessors, onSubmitted }) {
-  const [selectedProfIds, setSelectedProfIds] = useState([]);
+export default function StudentSubmit({ active, studentName, facultyList, facultyLoading, facultyError, onRetryFaculty, onSubmitted }) {
+  const [selectedFacultyIds, setSelectedFacultyIds] = useState([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [tributes, setTributes] = useState({});
   const [alert, setAlertMsg] = useState(null);
@@ -24,82 +24,82 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
   // null when no upload is in flight, otherwise 0-100 for the current video.
   const [uploadPct, setUploadPct] = useState(null);
   const videoInputRef = useRef(null);
-  const pendingVideoProfId = useRef(null);
+  const pendingVideoFacultyId = useRef(null);
 
-  const selectedProfs = professors.filter((p) => selectedProfIds.includes(p.id));
-  const safePreviewIndex = Math.min(previewIndex, Math.max(selectedProfs.length - 1, 0));
-  const currentProf = selectedProfs[safePreviewIndex];
+  const selectedFaculty = facultyList.filter((p) => selectedFacultyIds.includes(p.id));
+  const safePreviewIndex = Math.min(previewIndex, Math.max(selectedFaculty.length - 1, 0));
+  const currentFaculty = selectedFaculty[safePreviewIndex];
 
-  function getTribute(profId) {
-    return tributes[profId] || EMPTY_TRIBUTE;
+  function getTribute(facultyId) {
+    return tributes[facultyId] || EMPTY_TRIBUTE;
   }
 
-  function updateTribute(profId, patch) {
-    setTributes((prev) => ({ ...prev, [profId]: { ...(prev[profId] || EMPTY_TRIBUTE), ...patch } }));
+  function updateTribute(facultyId, patch) {
+    setTributes((prev) => ({ ...prev, [facultyId]: { ...(prev[facultyId] || EMPTY_TRIBUTE), ...patch } }));
   }
 
-  function clearTribute(profId) {
-    const t = getTribute(profId);
+  function clearTribute(facultyId) {
+    const t = getTribute(facultyId);
     if (t.videoUrl) URL.revokeObjectURL(t.videoUrl);
-    setTributes((prev) => ({ ...prev, [profId]: EMPTY_TRIBUTE }));
+    setTributes((prev) => ({ ...prev, [facultyId]: EMPTY_TRIBUTE }));
   }
 
-  function toggleProf(id) {
-    const wasSelected = selectedProfIds.includes(id);
-    const newSelected = wasSelected ? selectedProfIds.filter((x) => x !== id) : [...selectedProfIds, id];
-    setSelectedProfIds(newSelected);
+  function toggleFaculty(id) {
+    const wasSelected = selectedFacultyIds.includes(id);
+    const newSelected = wasSelected ? selectedFacultyIds.filter((x) => x !== id) : [...selectedFacultyIds, id];
+    setSelectedFacultyIds(newSelected);
     if (wasSelected) {
       clearTribute(id);
       setPreviewIndex((i) => Math.min(i, Math.max(newSelected.length - 1, 0)));
     } else {
-      // jump the slider to the newly selected professor's card
+      // jump the slider to the newly selected faculty's card
       setPreviewIndex(newSelected.length - 1);
     }
   }
 
-  function triggerVideoPick(profId) {
-    pendingVideoProfId.current = profId;
+  function triggerVideoPick(facultyId) {
+    pendingVideoFacultyId.current = facultyId;
     videoInputRef.current.click();
   }
 
   function onVideoChange(e) {
     const f = e.target.files[0];
-    const profId = pendingVideoProfId.current;
+    const facultyId = pendingVideoFacultyId.current;
     e.target.value = '';
-    if (!f || !profId) return;
+    if (!f || !facultyId) return;
     if (f.size > MAX_VIDEO_BYTES) {
       setAlertMsg({ type: 'error', text: `That video is ${(f.size / (1024 * 1024)).toFixed(0)}MB — the limit is 200MB. Pick a smaller file.` });
       return;
     }
-    const prevUrl = getTribute(profId).videoUrl;
+    const prevUrl = getTribute(facultyId).videoUrl;
     if (prevUrl) URL.revokeObjectURL(prevUrl);
-    updateTribute(profId, { mode: 'video', videoFile: f, videoUrl: URL.createObjectURL(f) });
+    updateTribute(facultyId, { mode: 'video', videoFile: f, videoUrl: URL.createObjectURL(f) });
   }
 
   async function submit() {
-    if (selectedProfIds.length === 0) return setAlertMsg({ type: 'error', text: 'Select at least one professor' });
+    if (selectedFacultyIds.length === 0) return setAlertMsg({ type: 'error', text: 'Select at least one faculty' });
 
-    for (const profId of selectedProfIds) {
-      const t = getTribute(profId);
+    for (const facultyId of selectedFacultyIds) {
+      const t = getTribute(facultyId);
       const incomplete = !t.mode || (t.mode === 'text' && !t.message.trim()) || (t.mode === 'video' && !t.videoFile);
       if (incomplete) {
-        const prof = professors.find((p) => p.id === profId);
-        return setAlertMsg({ type: 'error', text: `Add a message or video for ${prof ? prof.name : 'the selected professor'}` });
+        const member = facultyList.find((p) => p.id === facultyId);
+        return setAlertMsg({ type: 'error', text: `Add a message or video for ${member ? member.name : 'the selected faculty'}` });
       }
     }
 
     setBusy(true);
     setAlertMsg(null);
-    // Submitted one professor at a time, so a failure partway through a
-    // multi-professor batch doesn't lose track of the ones that already
+    // Submitted one faculty at a time, so a failure partway through a
+    // multi-faculty batch doesn't lose track of the ones that already
     // went through — those still count as "my tributes" even if a later
     // one in the same batch fails.
     const results = [];
-    let failedProf = null;
+    let failedFaculty = null;
     let failureMessage = null;
-    for (const profId of selectedProfIds) {
-      const t = getTribute(profId);
-      const payload = { profId, deviceId: getDeviceId() || undefined };
+    for (const facultyId of selectedFacultyIds) {
+      const t = getTribute(facultyId);
+      const payload = { facultyId, deviceId: getDeviceId() || undefined };
       if (t.mode === 'text') payload.message = t.message.trim();
       try {
         // The video goes straight from the browser to S3; only the resulting
@@ -120,7 +120,7 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
         results.push(sub);
       } catch (e) {
         setUploadPct(null);
-        failedProf = professors.find((p) => p.id === profId);
+        failedFaculty = facultyList.find((p) => p.id === facultyId);
         failureMessage = e.message;
         break;
       }
@@ -128,14 +128,14 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
 
     if (results.length > 0) addMySubmissionIds(results.map((s) => s.id));
 
-    if (failedProf) {
-      const successNote = results.length > 0 ? ` ${results.length} of ${selectedProfIds.length} went through — check My Tributes.` : '';
-      setAlertMsg({ type: 'error', text: `Couldn't send the tribute to ${failedProf.name}: ${failureMessage}.${successNote}` });
+    if (failedFaculty) {
+      const successNote = results.length > 0 ? ` ${results.length} of ${selectedFacultyIds.length} went through — check My Tributes.` : '';
+      setAlertMsg({ type: 'error', text: `Couldn't send the tribute to ${failedFaculty.name}: ${failureMessage}.${successNote}` });
     } else {
-      setAlertMsg({ type: 'success', text: `Tribute submitted to ${results.length} professor${results.length === 1 ? '' : 's'}! Thank you!` });
-      selectedProfIds.forEach((id) => { const t = getTribute(id); if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
+      setAlertMsg({ type: 'success', text: `Tribute submitted to ${results.length} faculty${results.length === 1 ? '' : 's'}! Thank you!` });
+      selectedFacultyIds.forEach((id) => { const t = getTribute(id); if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
       setTributes({});
-      setSelectedProfIds([]);
+      setSelectedFacultyIds([]);
       setPreviewIndex(0);
       onSubmitted();
     }
@@ -150,22 +150,21 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
           <h2>Create Your Tribute</h2>
 
           <div className="form-group">
-            <label>Select Professor(s) * <span className="muted">({professors.length})</span></label>
-            <div className="professor-grid">
-              {profsLoading && professors.length === 0 && <Loader text="Loading professors…" />}
-              {!profsLoading && profsError && professors.length === 0 && <ErrorState message={profsError} onRetry={onRetryProfessors} />}
-              {!profsLoading && !profsError && professors.length === 0 && <p className="muted">No professors yet for your institute.</p>}
-              {professors.map((p) => (
-                <div key={p.id} className={`prof-card ${selectedProfIds.includes(p.id) ? 'selected' : ''}`} onClick={() => toggleProf(p.id)}>
+            <label>Select Faculty(s) * <span className="muted">({facultyList.length})</span></label>
+            <div className="faculty-grid">
+              {facultyLoading && facultyList.length === 0 && <Loader text="Loading faculty…" />}
+              {!facultyLoading && facultyError && facultyList.length === 0 && <ErrorState message={facultyError} onRetry={onRetryFaculty} />}
+              {!facultyLoading && !facultyError && facultyList.length === 0 && <p className="muted">No faculty yet for your institute.</p>}
+              {facultyList.map((p) => (
+                <div key={p.id} className={`faculty-card ${selectedFacultyIds.includes(p.id) ? 'selected' : ''}`} onClick={() => toggleFaculty(p.id)}>
                   <img src={p.photo} alt={p.name} />
                   <p><strong>{p.name}</strong></p>
-                  <p style={{ color: '#8b6f47' }}>{p.designation}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="muted">Click into each postcard&apos;s preview below to type a message or upload a video for that professor.</p>
+          <p className="muted">Click into each postcard&apos;s preview below to type a message or upload a video for that faculty.</p>
 
           <input ref={videoInputRef} type="file" accept="video/*" onChange={onVideoChange} style={{ display: 'none' }} />
 
@@ -180,36 +179,36 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
         </div>
 
         <div>
-          <h2>Live Preview {selectedProfs.length > 1 ? `(${selectedProfs.length} professors)` : ''}</h2>
-          {selectedProfs.length === 0 && (
+          <h2>Live Preview {selectedFaculty.length > 1 ? `(${selectedFaculty.length} faculty)` : ''}</h2>
+          {selectedFaculty.length === 0 && (
             <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
               <div className="postcard-border">
-                <div className="postcard-left"><div className="muted center">Select a professor to preview your tribute</div></div>
+                <div className="postcard-left"><div className="muted center">Select a faculty to preview your tribute</div></div>
                 <div className="postcard-divider" />
                 <div className="postcard-right" />
               </div>
             </div>
           )}
-          {currentProf && (
+          {currentFaculty && (
             <>
-              <div className="muted" style={{ marginBottom: 6 }}>To: <strong>{currentProf.name}</strong></div>
+              <div className="muted" style={{ marginBottom: 6 }}>To: <strong>{currentFaculty.name}</strong></div>
               <div className="postcard-frame" style={{ fontFamily: FIXED_STYLE.fontFamily }}>
                 <div className="postcard-border">
                   <div className="postcard-left">
                     <TributeInline
-                      tribute={getTribute(currentProf.id)}
-                      onPickText={() => updateTribute(currentProf.id, { mode: 'text' })}
-                      onPickVideo={() => triggerVideoPick(currentProf.id)}
-                      onMessageChange={(v) => updateTribute(currentProf.id, { message: v })}
-                      onClear={() => clearTribute(currentProf.id)}
+                      tribute={getTribute(currentFaculty.id)}
+                      onPickText={() => updateTribute(currentFaculty.id, { mode: 'text' })}
+                      onPickVideo={() => triggerVideoPick(currentFaculty.id)}
+                      onMessageChange={(v) => updateTribute(currentFaculty.id, { message: v })}
+                      onClear={() => clearTribute(currentFaculty.id)}
                     />
                   </div>
                   <div className="postcard-divider" />
                   <div className="postcard-right">
-                    <div className="postcard-prof">
-                      <div className="postcard-prof-img"><img src={currentProf.photo} alt={currentProf.name} /></div>
+                    <div className="postcard-faculty">
+                      <div className="postcard-faculty-img"><img src={currentFaculty.photo} alt={currentFaculty.name} /></div>
                       <div className="postcard-label">To</div>
-                      <div className="postcard-prof-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(currentProf.name, 17) }}>{currentProf.name}</div>
+                      <div className="postcard-faculty-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(currentFaculty.name, 17) }}>{currentFaculty.name}</div>
                     </div>
                     <div>
                       <div className="postcard-hr" />
@@ -229,11 +228,11 @@ export default function StudentSubmit({ active, studentName, professors, profsLo
                   </div>
                 </div>
               </div>
-              {selectedProfs.length > 1 && (
+              {selectedFaculty.length > 1 && (
                 <div className="slider-controls-centered">
-                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i - 1 + selectedProfs.length) % selectedProfs.length)}>&larr; Prev</button>
-                  <span className="muted">{safePreviewIndex + 1} / {selectedProfs.length}</span>
-                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i + 1) % selectedProfs.length)}>Next &rarr;</button>
+                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i - 1 + selectedFaculty.length) % selectedFaculty.length)}>&larr; Prev</button>
+                  <span className="muted">{safePreviewIndex + 1} / {selectedFaculty.length}</span>
+                  <button type="button" className="btn-secondary btn-small" onClick={() => setPreviewIndex((i) => (i + 1) % selectedFaculty.length)}>Next &rarr;</button>
                 </div>
               )}
             </>

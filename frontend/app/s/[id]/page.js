@@ -26,7 +26,7 @@ export async function generateMetadata({ params }) {
   if (!result.data) return { title: result.unreachable ? "Teachers' Day Postcard Portal" : 'Tribute not found' };
 
   const submission = result.data;
-  const title = `Happy Teachers' Day, ${submission.profName}!`;
+  const title = `Happy Teachers' Day, ${submission.facultyName}!`;
   const description = submission.message
     ? `"${submission.message.slice(0, 150)}" — from ${submission.studentName}`
     : `A Teachers' Day tribute from ${submission.studentName}`;
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title,
       description,
-      images: submission.profPhoto ? [submission.profPhoto] : []
+      images: submission.facultyPhoto ? [submission.facultyPhoto] : []
     }
   };
 }
@@ -70,8 +70,8 @@ export default async function SharedTributePage({ params }) {
     <div className="container" style={{ maxWidth: 820, paddingTop: 40, paddingBottom: 60 }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img src="/masai_logo.png" alt="masai" style={{ height: 30, marginBottom: 14 }} />
-        <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {submission.profName}!</h2>
-        <p className="muted">{submission.profInstitute}</p>
+        <h2 style={{ marginBottom: 4 }}>Happy Teachers&apos; Day, {submission.facultyName}!</h2>
+        <p className="muted">{submission.facultyInstitute}</p>
       </div>
 
       <div className="slider-body">

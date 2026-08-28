@@ -3,18 +3,18 @@
 import { useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { uploadDirect } from '../../lib/upload';
+import InstitutePicker from './InstitutePicker';
 
 // Keep in sync with the photo limit in backend/src/routes/uploads.js —
 // an early, friendly rejection instead of waiting on a doomed upload.
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
-export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDeleted }) {
-  const [institute, setInstitute] = useState(prof.institute);
-  const [name, setName] = useState(prof.name);
-  const [designation, setDesignation] = useState(prof.designation);
-  const [email, setEmail] = useState(prof.email || '');
+export default function AdminEditFaculty({ member, institutes, onClose, onSaved, onDeleted }) {
+  const [selectedInstitutes, setSelectedInstitutes] = useState(member.institutes || []);
+  const [name, setName] = useState(member.name);
+  const [email, setEmail] = useState(member.email || '');
   const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState(prof.photo);
+  const [preview, setPreview] = useState(member.photo);
   const [alert, setAlertMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const photoInputRef = useRef(null);
@@ -34,15 +34,17 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
   }
 
   async function save() {
-    if (!institute || !name.trim() || !designation.trim()) {
-      return setAlertMsg({ type: 'error', text: 'Fill all required fields' });
+    if (selectedInstitutes.length === 0) {
+      return setAlertMsg({ type: 'error', text: 'Select at least one institute' });
+    }
+    if (!name.trim() || !email.trim()) {
+      return setAlertMsg({ type: 'error', text: 'Name and email are required' });
     }
     setBusy(true);
     try {
       const body = {
-        institute,
+        institutes: selectedInstitutes,
         name: name.trim(),
-        designation: designation.trim(),
         email: email.trim()
       };
       // Only when a new photo was picked — otherwise the existing one stays.
@@ -51,7 +53,7 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
         body.photoKey = key;
         body.photoToken = token;
       }
-      const updated = await api(`/api/professors/${prof.id}`, {
+      const updated = await api(`/api/faculty/${member.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -65,11 +67,11 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
   }
 
   async function remove() {
-    if (!window.confirm(`Delete ${prof.name}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${member.name}? This cannot be undone.`)) return;
     setBusy(true);
     try {
-      await api(`/api/professors/${prof.id}`, { method: 'DELETE' });
-      onDeleted(prof.id);
+      await api(`/api/faculty/${member.id}`, { method: 'DELETE' });
+      onDeleted(member.id);
     } catch (e) {
       setAlertMsg({ type: 'error', text: e.message });
     } finally {
@@ -81,17 +83,14 @@ export default function AdminEditProf({ prof, institutes, onClose, onSaved, onDe
     <div className="modal show" onClick={(e) => { if (e.target.classList.contains('modal')) onClose(); }}>
       <div className="modal-content" style={{ width: 460, padding: 24, textAlign: 'left' }}>
         <button className="modal-close" onClick={onClose}>&times;</button>
-        <h3 style={{ marginBottom: 14 }}>Edit Professor</h3>
+        <h3 style={{ marginBottom: 14 }}>Edit Faculty</h3>
         {alert && <div className={`alert ${alert.type} show`}>{alert.text}</div>}
+        <InstitutePicker institutes={institutes} selected={selectedInstitutes} onChange={setSelectedInstitutes} disabled={busy} />
+        <div className="form-group"><label>Faculty Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="form-group">
-          <label>Institute *</label>
-          <select value={institute} onChange={(e) => setInstitute(e.target.value)}>
-            {institutes.map((inst) => <option key={inst} value={inst}>{inst}</option>)}
-          </select>
+          <label>Email *</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-        <div className="form-group"><label>Professor Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="form-group"><label>Designation *</label><input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} /></div>
-        <div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div className="form-group">
           <label>Photo</label>
           <div className="upload-area" onClick={() => photoInputRef.current.click()}>
