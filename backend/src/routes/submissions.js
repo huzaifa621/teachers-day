@@ -123,6 +123,14 @@ router.post('/', requireStudent, async (req, res) => {
   }
 });
 
+// Soft delete — the record stays in the database with deleted:true; it just
+// stops appearing anywhere in the app. See lib/store.js.
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const ok = await submissions.softDelete(req.params.id);
+  if (!ok) return res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
+});
+
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   const { status } = req.body;
   if (!STATUSES.includes(status)) {

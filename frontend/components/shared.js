@@ -116,7 +116,7 @@ export function groupByInstitutes(list, institutesKey) {
 
 const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
-export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLinkedIn }) {
+export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLinkedIn, deleteMode, onDelete }) {
   const [busy, setBusy] = useState(null);
 
   return (
@@ -166,6 +166,11 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLink
               disabled={s.status === 'rejected'}
               onClick={() => onStatusChange(s.id, 'rejected')}
             >Reject</button>
+          </div>
+        )}
+        {isAdmin && deleteMode && onDelete && (
+          <div style={{ marginTop: 8 }}>
+            <button className="gallery-btn reject" onClick={() => onDelete(s.id)}>Delete</button>
           </div>
         )}
       </div>
@@ -264,6 +269,21 @@ export function Gallery({ active, isAdmin, mineOnly }) {
   const [loadError, setLoadError] = useState(null);
   const [modalSubmission, setModalSubmission] = useState(null);
   const [linkedInSubmission, setLinkedInSubmission] = useState(null);
+  // Hidden feature — Cmd/Ctrl+Shift+S reveals per-card Delete buttons. Admin
+  // only; the backend also enforces this independently of the UI.
+  const [deleteMode, setDeleteMode] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    function onKeyDown(e) {
+      if (e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setDeleteMode((v) => !v);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isAdmin]);
 
   function load() {
     // "My Tributes" asks the backend for exactly these ids, regardless of
@@ -302,6 +322,18 @@ export function Gallery({ active, isAdmin, mineOnly }) {
     }
   }
 
+  async function onDelete(id) {
+    if (!window.confirm('Delete this tribute? It will disappear from the gallery everywhere, but stays in the database.')) return;
+    const prevSubs = subs;
+    setSubs((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await api(`/api/submissions/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      setSubs(prevSubs);
+      alert(`Could not delete: ${e.message || 'unknown error'}`);
+    }
+  }
+
   const groups = groupByInstitute(subs, 'facultyInstitute');
 
   return (
@@ -318,7 +350,7 @@ export function Gallery({ active, isAdmin, mineOnly }) {
             <h3>{inst}</h3>
             <div className="gallery-grid">
               {items.map((s) => (
-                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} onShareLinkedIn={setLinkedInSubmission} />
+                <SubmissionCard key={s.id} s={s} onView={setModalSubmission} isAdmin={isAdmin} onStatusChange={isAdmin ? onStatusChange : null} onShareLinkedIn={setLinkedInSubmission} deleteMode={deleteMode} onDelete={isAdmin ? onDelete : null} />
               ))}
             </div>
           </div>
