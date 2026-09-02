@@ -119,14 +119,11 @@ const STATUS_LABEL = { pending: 'Pending', approved: 'Approved', rejected: 'Reje
 export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLinkedIn }) {
   const [busy, setBusy] = useState(null);
 
-  let thumb;
-  if (s.type === 'text') thumb = <div style={{ fontSize: 36 }}>&#128221;</div>;
-  else if (s.type === 'video') thumb = <video muted><source src={s.fileUrl} /></video>;
-  else thumb = <div style={{ fontSize: 36 }}>&#128196;</div>;
-
   return (
     <div className="gallery-card">
-      <div className="gallery-thumbnail" onClick={() => onView(s)}>{thumb}</div>
+      <div className="gallery-thumbnail" onClick={() => onView(s)}>
+        {s.facultyPhoto && <img src={s.facultyPhoto} alt={s.facultyName} />}
+      </div>
       <div className="gallery-info">
         <div className="gallery-header">
           <span className="gallery-type">{typeLabel(s.type)}</span>
@@ -138,8 +135,6 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLink
           <div><strong>To:</strong> {s.facultyName}</div>
           <div><strong>From:</strong> {s.studentName}</div>
           <div><strong>Date:</strong> {new Date(s.createdAt).toLocaleString()}</div>
-          {isAdmin && <div><strong>Device:</strong> {s.deviceId || '—'}</div>}
-          {isAdmin && <div><strong>IP:</strong> {s.ip || '—'}</div>}
         </div>
         <div>
           <button className="gallery-btn" onClick={() => onView(s)}>View</button>

@@ -33,7 +33,7 @@ export default function AdminDirectory({ active, facultyList, institutes, onChan
         {!loading && !loadError && groups.map(([inst, facultyList]) => (
           <div key={inst} className="inst-group">
             <h3>{inst}</h3>
-            <div className="faculty-grid" style={{ maxHeight: 'none' }}>
+            <div className="faculty-grid directory">
               {facultyList.map((p) => (
                 <div key={p.id} className="faculty-card" style={{ cursor: 'default' }}>
                   <img src={p.photo} alt={p.name} />
@@ -50,7 +50,7 @@ export default function AdminDirectory({ active, facultyList, institutes, onChan
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'center' }}>
+                  <div className="faculty-card-actions">
                     <button type="button" className="gallery-btn alt" onClick={() => setEditingFaculty(p)}>Edit</button>
                     <button type="button" className="gallery-btn reject" disabled={deletingId === p.id} onClick={() => deleteFaculty(p)}>Delete</button>
                   </div>

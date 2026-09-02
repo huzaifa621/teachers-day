@@ -20,6 +20,7 @@ export default function StudentSubmit({ active, studentName, facultyList, facult
   const [previewIndex, setPreviewIndex] = useState(0);
   const [tributes, setTributes] = useState({});
   const [alert, setAlertMsg] = useState(null);
+  const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
   // null when no upload is in flight, otherwise 0-100 for the current video.
   const [uploadPct, setUploadPct] = useState(null);
@@ -55,6 +56,11 @@ export default function StudentSubmit({ active, studentName, facultyList, facult
       // jump the slider to the newly selected faculty's card
       setPreviewIndex(newSelected.length - 1);
     }
+  }
+
+  function showToast(text) {
+    setToast(text);
+    setTimeout(() => setToast(null), 3000);
   }
 
   function triggerVideoPick(facultyId) {
@@ -132,7 +138,7 @@ export default function StudentSubmit({ active, studentName, facultyList, facult
       const successNote = results.length > 0 ? ` ${results.length} of ${selectedFacultyIds.length} went through — check My Tributes.` : '';
       setAlertMsg({ type: 'error', text: `Couldn't send the tribute to ${failedFaculty.name}: ${failureMessage}.${successNote}` });
     } else {
-      setAlertMsg({ type: 'success', text: `Tribute submitted to ${results.length} faculty${results.length === 1 ? '' : 's'}! Thank you!` });
+      showToast(`Tribute added to Gallery${results.length > 1 ? ` for ${results.length} faculty` : ''}! Thank you!`);
       selectedFacultyIds.forEach((id) => { const t = getTribute(id); if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
       setTributes({});
       setSelectedFacultyIds([]);
@@ -239,6 +245,7 @@ export default function StudentSubmit({ active, studentName, facultyList, facult
           )}
         </div>
       </div>
+      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </div>
   );
 }
