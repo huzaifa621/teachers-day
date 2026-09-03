@@ -15,7 +15,8 @@ const INSTITUTES = [
   'IIM Ranchi',
   'IIM Rohtak',
   'IIT Guwahati',
-  'IIT Ropar'
+  'IIT Ropar',
+  'IIT Hyderabad'
 ];
 
 module.exports = { INSTITUTES };
