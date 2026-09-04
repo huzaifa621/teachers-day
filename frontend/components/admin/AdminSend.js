@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { copyToClipboard } from '../../lib/clipboard';
-import { typeLabel, FacultyPreviewSlider, Loader, ErrorState } from '../shared';
+import { typeLabel, FacultyPreviewSlider, Loader, ErrorState, FacultyPhoto } from '../shared';
+import { buildLinkedInAutofillUrl } from '../../lib/share';
 
 export default function AdminSend({ active, facultyList, facultyLoading, facultyError, onRetryFaculty }) {
   const [subs, setSubs] = useState([]);
@@ -11,6 +12,7 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
   const [loadError, setLoadError] = useState(null);
   const [previewFaculty, setPreviewFaculty] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [copiedLinkedInId, setCopiedLinkedInId] = useState(null);
   const [linkError, setLinkError] = useState(null);
   const [csvBusy, setCsvBusy] = useState(false);
 
@@ -31,6 +33,30 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
       setTimeout(() => setCopiedId((id) => (id === facultyId ? null : id)), 2000);
     } catch (err) {
       setLinkError(err.message || 'Could not copy link.');
+    }
+  }
+
+  // Admins aren't the ones posting — the faculty member is, from their own
+  // LinkedIn account — so this copies the autofill link (caption + tribute
+  // link baked in) rather than opening LinkedIn under the admin's session.
+  // Paste it into the email template so the faculty member just clicks it.
+  // The caption is fetched fresh on every click (not cached in state) so an
+  // edit made in the hidden "Update LinkedIn Post" tab is picked up
+  // immediately, with no stale-state coordination between the two tabs.
+  async function copyLinkedInLink(facultyId) {
+    try {
+      const [{ token }, { caption }] = await Promise.all([
+        api(`/api/faculty/${facultyId}/link`),
+        api('/api/settings/linkedin-caption')
+      ]);
+      const url = `${window.location.origin}/p/${token}`;
+      const text = `${url}\n\n${caption}`;
+      await copyToClipboard(buildLinkedInAutofillUrl(text));
+      setCopiedLinkedInId(facultyId);
+      setLinkError(null);
+      setTimeout(() => setCopiedLinkedInId((id) => (id === facultyId ? null : id)), 2000);
+    } catch (err) {
+      setLinkError(err.message || 'Could not copy LinkedIn link.');
     }
   }
 
@@ -72,7 +98,7 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
           return (
             <div key={p.id} className="faculty-send-row">
               <div className="who">
-                <img src={p.photo} alt={p.name} />
+                <FacultyPhoto src={p.photo} alt={p.name} />
                 <div>
                   <div><strong>{p.name}</strong></div>
                   <div className="meta">{(p.institutes || []).join(' · ')} &middot; {memberSubs.length} approved tribute(s)</div>
@@ -81,7 +107,10 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
               <div className="actions">
                 <button className="btn-secondary btn-small" onClick={() => setPreviewFaculty(p)}>Preview</button>
                 <button className="btn-secondary btn-small" onClick={() => copyLink(p.id)}>
-                  {copiedId === p.id ? 'Copied!' : 'Copy Link'}
+                  {copiedId === p.id ? 'Copied!' : 'Tribute Cards Link'}
+                </button>
+                <button className="btn-secondary btn-small" onClick={() => copyLinkedInLink(p.id)}>
+                  {copiedLinkedInId === p.id ? 'Copied!' : 'LinkedIn Link'}
                 </button>
               </div>
               {memberSubs.length > 0 && (

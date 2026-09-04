@@ -150,4 +150,26 @@ const submissions = {
   }
 };
 
-module.exports = { faculty, submissions };
+const DEFAULT_LINKEDIN_CAPTION = 'My students surprised me with these Teachers’ Day tributes this year 💌 #MasaiTeachersDay';
+
+// A single shared caption template used for every faculty member's LinkedIn
+// autofill link (see routes/settings.js) — one document, not a collection,
+// since there's exactly one value to hold today.
+const settings = {
+  async getLinkedInCaption() {
+    const db = await getDb();
+    const doc = await db.collection('settings').findOne({ _id: 'linkedinCaption' });
+    return doc ? doc.value : DEFAULT_LINKEDIN_CAPTION;
+  },
+  async setLinkedInCaption(value) {
+    const db = await getDb();
+    await db.collection('settings').updateOne(
+      { _id: 'linkedinCaption' },
+      { $set: { value, updatedAt: new Date().toISOString() } },
+      { upsert: true }
+    );
+    return value;
+  }
+};
+
+module.exports = { faculty, submissions, settings };

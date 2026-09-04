@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { groupByInstitutes, Loader, ErrorState } from '../shared';
+import { groupByInstitutes, Loader, ErrorState, FacultyPhoto } from '../shared';
 import AdminEditFaculty from './AdminEditFaculty';
 import { api } from '../../lib/api';
 
@@ -36,7 +36,7 @@ export default function AdminDirectory({ active, facultyList, institutes, onChan
             <div className="faculty-grid directory">
               {facultyList.map((p) => (
                 <div key={p.id} className="faculty-card" style={{ cursor: 'default' }}>
-                  <img src={p.photo} alt={p.name} />
+                  <FacultyPhoto src={p.photo} alt={p.name} />
                   <div style={{ flex: 1 }}>
                     <p><strong>{p.name}</strong></p>
                     <p className="muted tiny">{p.email}</p>

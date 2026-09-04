@@ -1,5 +1,5 @@
 const express = require('express');
-const { faculty, submissions } = require('../lib/store');
+const { faculty, submissions, settings } = require('../lib/store');
 const { requireAuth, requireAdmin } = require('../lib/middleware');
 const { INSTITUTES } = require('../lib/institutes');
 const storage = require('../lib/storage');
@@ -155,6 +155,10 @@ function csvCell(value) {
 router.get('/links.csv', requireAdmin, async (req, res) => {
   const origin = (req.query.origin || '').replace(/\/+$/, '');
   const all = await faculty.all();
+  // One shared caption for every faculty member (see routes/settings.js and
+  // AdminSend's "LinkedIn Link" button) — same shareActive autofill trick,
+  // link on top, caption below.
+  const linkedInCaption = await settings.getLinkedInCaption();
 
   const rows = [];
   for (const m of all) {
@@ -162,12 +166,14 @@ router.get('/links.csv', requireAdmin, async (req, res) => {
     const approvedCount = memberSubs.filter((s) => s.status === 'approved').length;
     if (approvedCount === 0) continue;
     const token = await faculty.ensureShareToken(String(m._id));
+    const link = `${origin}/p/${token}`;
+    const linkedInLink = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(`${link}\n\n${linkedInCaption}`)}`;
     // Several institutes collapse into one cell so the export stays one row
     // per faculty member.
-    rows.push([m.name, (m.institutes || []).join('; '), m.email || '', approvedCount, `${origin}/p/${token}`]);
+    rows.push([m.name, (m.institutes || []).join('; '), m.email || '', approvedCount, link, linkedInLink]);
   }
 
-  const header = ['Name', 'Institutes', 'Email', 'Approved Tributes', 'Link'];
+  const header = ['Name', 'Institutes', 'Email', 'Approved Tributes', 'Tribute card link', 'LinkedIn link'];
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');

@@ -1,12 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, downloadFile } from '../lib/api';
 import { getMySubmissionIds } from '../lib/mySubmissions';
 import { copyToClipboard } from '../lib/clipboard';
 import { openLinkedInShare, STUDENT_LINKEDIN_CAPTIONS } from '../lib/share';
 
 export function typeLabel(t) { return t === 'text' ? 'Message' : t === 'video' ? 'Video' : 'PDF'; }
+
+// A faculty photo can 404/403 (e.g. a browser-to-S3 upload that never
+// finished landing the object) — a plain <img onError=...> misses that on
+// pages rendered from the server: the tag is already in the initial HTML,
+// so a fast S3 error can fire and be lost before hydration attaches the
+// handler. This re-checks `complete`/`naturalWidth` right after mount to
+// catch that race, then hides itself instead of showing a broken-image icon.
+export function FacultyPhoto({ src, alt, className }) {
+  const imgRef = useRef(null);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) setBroken(true);
+  }, [src]);
+
+  if (!src || broken) return null;
+  return <img ref={imgRef} className={className} src={src} alt={alt} onError={() => setBroken(true)} />;
+}
 
 // Font/color/size are fixed by design — students no longer customize them.
 // Keep in sync with backend/src/lib/postcard-style.js.
@@ -35,7 +55,7 @@ export function PostcardCard({ submission: s }) {
         <div className="postcard-divider" />
         <div className="postcard-right">
           <div className="postcard-faculty">
-            <div className="postcard-faculty-img">{s.facultyPhoto && <img src={s.facultyPhoto} alt={s.facultyName} />}</div>
+            <div className="postcard-faculty-img"><FacultyPhoto src={s.facultyPhoto} alt={s.facultyName} /></div>
             <div className="postcard-label">To</div>
             <div className="postcard-faculty-name" style={{ color: FIXED_STYLE.textColor, fontSize: nameFontSize(s.facultyName, 17) }}>{s.facultyName}</div>
           </div>
@@ -122,7 +142,7 @@ export function SubmissionCard({ s, onView, isAdmin, onStatusChange, onShareLink
   return (
     <div className="gallery-card">
       <div className="gallery-thumbnail" onClick={() => onView(s)}>
-        {s.facultyPhoto && <img src={s.facultyPhoto} alt={s.facultyName} />}
+        <FacultyPhoto src={s.facultyPhoto} alt={s.facultyName} />
       </div>
       <div className="gallery-info">
         <div className="gallery-header">

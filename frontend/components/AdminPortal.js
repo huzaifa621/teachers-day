@@ -9,6 +9,7 @@ import AdminHome from './admin/AdminHome';
 import AdminAddFaculty from './admin/AdminAddFaculty';
 import AdminDirectory from './admin/AdminDirectory';
 import AdminSend from './admin/AdminSend';
+import AdminLinkedInSettings from './admin/AdminLinkedInSettings';
 
 const TABS = [
   { id: 'admin-home', label: 'Dashboard' },
@@ -18,6 +19,8 @@ const TABS = [
   { id: 'admin-send', label: 'Send to Faculty' }
 ];
 
+const HIDDEN_TAB = { id: 'admin-linkedin-settings', label: 'Update LinkedIn Post' };
+
 export default function AdminPortal() {
   const { session, setSession, logout } = useSession();
   const { institutes, error: institutesError, retry: retryInstitutes } = useInstitutes();
@@ -25,11 +28,27 @@ export default function AdminPortal() {
   const [facultyLoading, setFacultyLoading] = useState(true);
   const [facultyError, setFacultyError] = useState(null);
   const [activeTab, setActiveTab] = useState('admin-home');
+  // Session-only — a refresh or fresh login hides the tab again until the
+  // shortcut is pressed once more. Not a real access boundary (the API
+  // routes are already admin-gated); this is just an uncluttered tab bar.
+  const [linkedInSettingsUnlocked, setLinkedInSettingsUnlocked] = useState(false);
 
   useEffect(() => {
     if (!session || session === 'loading' || session === 'anon' || session.role !== 'admin') return;
     loadFaculty();
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setLinkedInSettingsUnlocked(true);
+        setActiveTab(HIDDEN_TAB.id);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   function loadFaculty() {
     setFacultyLoading(true);
@@ -62,6 +81,9 @@ export default function AdminPortal() {
         {TABS.map((t) => (
           <button key={t.id} className={`tab-btn ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>{t.label}</button>
         ))}
+        {linkedInSettingsUnlocked && (
+          <button className={`tab-btn ${activeTab === HIDDEN_TAB.id ? 'active' : ''}`} onClick={() => setActiveTab(HIDDEN_TAB.id)}>{HIDDEN_TAB.label}</button>
+        )}
       </div>
 
       {institutesError && (
@@ -87,6 +109,7 @@ export default function AdminPortal() {
         facultyError={facultyError}
         onRetryFaculty={loadFaculty}
       />
+      {linkedInSettingsUnlocked && <AdminLinkedInSettings active={activeTab === HIDDEN_TAB.id} />}
     </div>
   );
 }

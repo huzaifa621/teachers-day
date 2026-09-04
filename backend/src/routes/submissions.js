@@ -11,7 +11,15 @@ const router = express.Router();
 
 // includeInternal (admin-only) adds the silent submitter signals — never
 // sent to students, even for their own submissions.
-function toPublic(s, includeInternal) {
+//
+// s.facultyPhotoPath is a snapshot taken when the tribute was submitted —
+// if the faculty member's photo gets replaced later (e.g. swapping out a
+// broken default photo), old submissions would otherwise keep pointing at
+// the original, possibly-now-deleted S3 key forever. currentPhotoPath (the
+// faculty's live photoPath) takes priority when the caller has it; falls
+// back to the frozen snapshot only if the faculty record itself is gone.
+function toPublic(s, includeInternal, currentPhotoPath) {
+  const photoPath = currentPhotoPath !== undefined ? currentPhotoPath : s.facultyPhotoPath;
   const out = {
     id: String(s._id),
     studentName: s.studentName,
@@ -19,7 +27,7 @@ function toPublic(s, includeInternal) {
     facultyId: s.facultyId,
     facultyName: s.facultyName,
     facultyInstitute: s.facultyInstitute,
-    facultyPhoto: storage.publicUrl(s.facultyPhotoPath),
+    facultyPhoto: storage.publicUrl(photoPath),
     type: s.type,
     message: s.message,
     fileName: s.fileName,
@@ -40,6 +48,8 @@ function toPublic(s, includeInternal) {
 router.get('/', requireAuth, async (req, res) => {
   const all = await submissions.all();
   const isAdmin = req.session.role === 'admin';
+  const photoByFacultyId = new Map((await faculty.all()).map((f) => [String(f._id), f.photoPath]));
+  const withCurrentPhoto = (s) => toPublic(s, isAdmin, photoByFacultyId.get(s.facultyId));
 
   // A student's own "My Tributes" gallery passes back the ids it remembered
   // (see lib/mySubmissions.js — there's no real student account to scope by,
@@ -50,12 +60,12 @@ router.get('/', requireAuth, async (req, res) => {
   if (req.query.ids !== undefined) {
     const idSet = new Set(String(req.query.ids).split(',').filter(Boolean));
     const mine = all.filter((s) => idSet.has(String(s._id)));
-    return res.json(mine.map((s) => toPublic(s, isAdmin)));
+    return res.json(mine.map(withCurrentPhoto));
   }
 
   // Otherwise, moderation status is admin-only — everyone else only sees approved tributes.
   const visible = isAdmin ? all : all.filter((s) => (s.status || 'pending') === 'approved');
-  res.json(visible.map((s) => toPublic(s, isAdmin)));
+  res.json(visible.map(withCurrentPhoto));
 });
 
 router.get('/:id', requireAuth, async (req, res) => {
@@ -65,7 +75,8 @@ router.get('/:id', requireAuth, async (req, res) => {
   if (!isAdmin && (s.status || 'pending') !== 'approved') {
     return res.status(404).json({ error: 'Not found' });
   }
-  res.json(toPublic(s, isAdmin));
+  const member = await faculty.get(s.facultyId);
+  res.json(toPublic(s, isAdmin, member ? member.photoPath : undefined));
 });
 
 // Video tributes no longer arrive as multipart here — the browser PUTs the
@@ -115,7 +126,7 @@ router.post('/', requireStudent, async (req, res) => {
       ip: req.ip || null
     });
 
-    res.json(toPublic(sub, false));
+    res.json(toPublic(sub, false, member.photoPath));
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('submission create failed', err);
@@ -138,7 +149,8 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
   }
   const s = await submissions.setStatus(req.params.id, status);
   if (!s) return res.status(404).json({ error: 'Not found' });
-  res.json(toPublic(s, true));
+  const member = await faculty.get(s.facultyId);
+  res.json(toPublic(s, true, member ? member.photoPath : undefined));
 });
 
 module.exports = router;

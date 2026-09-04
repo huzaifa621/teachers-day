@@ -17,3 +17,15 @@ export const STUDENT_LINKEDIN_CAPTIONS = [
   'Here’s to the teacher who gave us more than notes, assignments, and deadlines — they gave us a little more belief in ourselves. 💌 #MasaiTeachersDay',
   'Teachers: professionally responsible for our learning, unofficially responsible for so much more. Here’s to my favourite one. 💌 #MasaiTeachersDay'
 ];
+
+// Undocumented LinkedIn endpoint that actually pre-fills the compose box's
+// text on desktop web (unlike share-offsite above, which only ever fills a
+// URL preview card from Open Graph tags). Include the link inside `text`
+// itself — LinkedIn detects it and builds the preview card from it. This is
+// unofficial and can change or break without notice, so re-verify
+// periodically. On the LinkedIn mobile app the link gets intercepted and
+// opens the plain feed with nothing filled in — same degradation the
+// share-offsite button above already has on mobile.
+export function buildLinkedInAutofillUrl(text) {
+  return `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`;
+}
