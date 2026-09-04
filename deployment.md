@@ -149,6 +149,7 @@ Fill in the `.env` file:
 NODE_ENV=production
 PORT=4173
 FRONTEND_ORIGIN=http://YOUR_ELASTIC_IP
+PUBLIC_SITE_URL=http://YOUR_ELASTIC_IP
 SESSION_SECRET=PASTE_RANDOM_STRING_HERE
 ADMIN_PASSWORD=PICK_A_REAL_PASSWORD
 MONGODB_URI=YOUR_MONGODB_ATLAS_CONNECTION_STRING
@@ -156,6 +157,10 @@ MONGODB_DB_NAME=teachers_day
 AWS_REGION=ap-south-1
 S3_BUCKET=your-bucket-name
 ```
+
+Both `FRONTEND_ORIGIN` and `PUBLIC_SITE_URL` are placeholders here — you'll update them to the
+real domain once it's live in Step 7. Until then, every shareable tribute link and LinkedIn
+post (see `routes/faculty.js`) would otherwise point at this Elastic IP.
 
 - For `SESSION_SECRET`, generate a random value: `openssl rand -hex 32`
 - Leave `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` **out entirely** — the IAM role from Step 2 handles S3 access automatically.
@@ -208,6 +213,17 @@ sudo certbot --nginx -d tributes.yourdomain.com
 Certbot will automatically request a free TLS certificate and rewrite the Nginx config to serve HTTPS and redirect HTTP → HTTPS.
 
 4. Visit `https://tributes.yourdomain.com` — you should see the padlock and a working app.
+
+5. Now that the real domain is live, point the backend at it instead of the Elastic IP —
+   otherwise shareable tribute links, the CSV export, and LinkedIn post links keep pointing
+   at `http://YOUR_ELASTIC_IP`:
+```bash
+nano .env
+# update both to: https://tributes.yourdomain.com
+#   FRONTEND_ORIGIN=https://tributes.yourdomain.com
+#   PUBLIC_SITE_URL=https://tributes.yourdomain.com
+docker compose up -d --build backend
+```
 
 Note: logging into the admin panel requires HTTPS to work correctly (secure cookies), so do this step before testing login.
 

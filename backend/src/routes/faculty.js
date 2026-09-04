@@ -7,6 +7,14 @@ const { resolveUpload } = require('./uploads');
 
 const router = express.Router();
 
+// The domain real students/faculty use, always — regardless of where the
+// admin happens to be browsing from (e.g. testing the admin panel against
+// the production database from localhost, as easily happens during dev).
+// Relying on the request's/browser's own origin for this was the bug: it
+// leaked "localhost" into shareable links and LinkedIn posts whenever an
+// admin generated them from a local or preview environment.
+const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || 'http://localhost:3001').replace(/\/+$/, '');
+
 function toPublic(m) {
   return {
     id: String(m._id),
@@ -141,7 +149,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
 router.get('/:id/link', requireAdmin, async (req, res) => {
   const token = await faculty.ensureShareToken(req.params.id);
   if (!token) return res.status(404).json({ error: 'Not found' });
-  res.json({ token });
+  res.json({ url: `${PUBLIC_SITE_URL}/p/${token}` });
 });
 
 function csvCell(value) {
@@ -150,10 +158,8 @@ function csvCell(value) {
 }
 
 // Bulk export of tribute links, one row per faculty member who has at least one
-// approved tribute — the origin is passed by the frontend (window.location.origin)
-// since the backend may be configured with more than one allowed frontend origin.
+// approved tribute.
 router.get('/links.csv', requireAdmin, async (req, res) => {
-  const origin = (req.query.origin || '').replace(/\/+$/, '');
   const all = await faculty.all();
   // One shared caption for every faculty member (see routes/settings.js and
   // AdminSend's "LinkedIn Link" button) — same shareActive autofill trick,
@@ -166,7 +172,7 @@ router.get('/links.csv', requireAdmin, async (req, res) => {
     const approvedCount = memberSubs.filter((s) => s.status === 'approved').length;
     if (approvedCount === 0) continue;
     const token = await faculty.ensureShareToken(String(m._id));
-    const link = `${origin}/p/${token}`;
+    const link = `${PUBLIC_SITE_URL}/p/${token}`;
     const linkedInLink = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(`${link}\n\n${linkedInCaption}`)}`;
     // Several institutes collapse into one cell so the export stays one row
     // per faculty member.

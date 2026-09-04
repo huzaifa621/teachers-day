@@ -18,15 +18,18 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
 
   function downloadLinksCsv() {
     setCsvBusy(true);
-    downloadFile(`/api/faculty/links.csv?origin=${encodeURIComponent(window.location.origin)}`)
+    downloadFile('/api/faculty/links.csv')
       .catch((err) => setLinkError(err.message || 'Could not download CSV.'))
       .finally(() => setCsvBusy(false));
   }
 
   async function copyLink(facultyId) {
     try {
-      const { token } = await api(`/api/faculty/${facultyId}/link`);
-      const url = `${window.location.origin}/p/${token}`;
+      // The backend builds the full URL against the real deployed domain
+      // (PUBLIC_SITE_URL) — not window.location.origin, which would leak
+      // "localhost" into the copied link if the admin is testing locally
+      // against the production database.
+      const { url } = await api(`/api/faculty/${facultyId}/link`);
       await copyToClipboard(url);
       setCopiedId(facultyId);
       setLinkError(null);
@@ -45,11 +48,10 @@ export default function AdminSend({ active, facultyList, facultyLoading, faculty
   // immediately, with no stale-state coordination between the two tabs.
   async function copyLinkedInLink(facultyId) {
     try {
-      const [{ token }, { caption }] = await Promise.all([
+      const [{ url }, { caption }] = await Promise.all([
         api(`/api/faculty/${facultyId}/link`),
         api('/api/settings/linkedin-caption')
       ]);
-      const url = `${window.location.origin}/p/${token}`;
       const text = `${url}\n\n${caption}`;
       await copyToClipboard(buildLinkedInAutofillUrl(text));
       setCopiedLinkedInId(facultyId);
